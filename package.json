@@ -1,15 +1,17 @@
 {
   "name": "koishi-plugin-pokemon-fusion",
   "description": "A plugin that will provide fused pokemon images from Pokemon Infinite Fusion.",
-  "version": "0.0.1",
+  "version": "1.0.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
+  "contributors": [
+    "CKRainbow <nanashichi@proton.me>"
+  ],
   "files": [
     "lib",
     "dist"
   ],
   "license": "MIT",
-  "scripts": {},
   "keywords": [
     "chatbot",
     "koishi",
@@ -17,5 +19,12 @@
   ],
   "peerDependencies": {
     "koishi": "^4.16.6"
+  },
+  "koishi": {
+    "description": {
+      "en": "A plugin that will provide fused pokemon images from Pokemon Infinite Fusion.",
+      "zh": "目前可以指定或随机显示 Pokemon Infinite Fusion中的融合宝可梦的图像。"
+    },
+    "preview": true
   }
 }

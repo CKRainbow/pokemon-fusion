@@ -27,12 +27,12 @@ export function apply(ctx: Context) {
       } else if (bodyId === null) {
         return `尚不支持该身体宝可梦`;
       }
-      
-      if (headId === undefined || (headId === -1 && bodyId == -1)) {
+
+      if (headId === undefined || (headId === 0 && bodyId === 0)) {
         [headId, bodyId] = randFuse();
-      } else if (bodyId == undefined || bodyId === -1) {
+      } else if (bodyId == undefined || bodyId === 0) {
         [headId, bodyId] = randFuseByHead(headId);
-      } else if (headId === -1) {
+      } else if (headId === 0) {
         [headId, bodyId] = randFuseByBody(bodyId);
       }
 
@@ -68,12 +68,12 @@ export function apply(ctx: Context) {
       }
     }
   ).alias(
-    "随机融合", {args: ["-1", "-1"]}
+    "随机融合", {args: ["0", "0"]}
   ).alias(
-    "全随机融合", {args: ["-1", "-1"], options: ["--all"]}
+    "全随机融合", {args: ["0", "0"], options: ["--all"]}
   ).alias(
     "融合"
   ).usage(
-    "第一个参数代表头部，第二个参数代表身体，可以使用图鉴编号、中文名或英文名。"
+    "第一个参数代表头部，第二个参数代表身体，可以使用图鉴编号、中文名或英文名。\n输入0代表随机，参数--all代表无视人工图过滤。"
   )
 }

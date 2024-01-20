@@ -14,7 +14,7 @@ export function tryParseIntoPifId(parsee: string | undefined): PifId | undefined
     if (parsee === undefined)
         return undefined;
 
-    let pokeId = -1;
+    let pokeId = 0;
 
     if (isInteger(parseFloat(parsee))) {
         pokeId = parseInt(parsee);
@@ -61,7 +61,7 @@ function getPokeIdFromName(name: string): PokeId | null
 
 function tryGetPifIdFromPokeId(pokeId: PokeId): PifId | null
 {
-    if (pokeId === 0 || pokeId < -1)
+    if (pokeId <= -1)
         return null;
     else if (pokeId <= 251)
         // 初代和二代宝可梦Id相同

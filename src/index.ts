@@ -1,5 +1,5 @@
 import { Context, Schema, h } from "koishi";
-import { getPifUrl, getPifUrlAll, getPokeNameByPifId, randFuse, randFuseByBody, randFuseByHead, tryGetPokeIdFromName, tryParseIntoPifId } from "./utils";
+import { getPifUrl, getPifUrlAll, getPokeNameByPifId, randFuse, randFuseByBody, randFuseByHead, tryGetPokeIdFromName, tryParseIntoPifId, validCustomFusion} from "./utils";
 
 export const name = "pokemon-fusion";
 
@@ -11,6 +11,7 @@ export function apply(ctx: Context) {
   ctx
     .command("fuse [head] [body]", "获得某两个宝可梦的融合")
     .option("all", "-a")
+    .option("variant", "-v <variant:integer>")
     .action(async (argv, head, body) => {
       const options = argv.options;
 
@@ -33,35 +34,18 @@ export function apply(ctx: Context) {
 
       argv.session.send(`要融合的宝可梦原来是${getPokeNameByPifId(headId)}和${getPokeNameByPifId(bodyId)}！`);
 
-      let status = 0;
-      let url = undefined;
-      if (options.all) {
-        url = getPifUrlAll(headId, bodyId);
-        status = 200;
-      } else {
-        // TODO: 支持fetch后替换或采用内部表避免不存在融合
-        // 使用内部表还可以方便地支持变体
+      let url = "";
+      if (validCustomFusion(headId, bodyId)) {
         url = getPifUrl(headId, bodyId);
-        status = await ctx.http
-          .get(url)
-          .then((res) => {
-            return 200;
-          })
-          .catch((e) => {
-            return e.response.status;
-          });
+      } else if (options.all) {
+        url = getPifUrlAll(headId, bodyId);
+      } else {
+        return `暂时还没有这种融合呢。`
       }
 
-      if (status === 200) {
-        return h("img", { src: url });
-      } else if (status === 404) {
-        return `暂时没有这种融合呢。`;
-      } else {
-        return `出错了！`;
-      }
+      return h("img", { src: url });
     })
     .alias("随机融合", { args: ["0", "0"] })
-    .alias("全随机融合", { args: ["0", "0"], options: { all: true } })
     .shortcut(/^锁头 (\S*)\s*$/, { args: ["$1", "0"] })
     .shortcut(/^锁身 (\S*)\s*$/, { args: ["0", "$1"] })
     .alias("融合")

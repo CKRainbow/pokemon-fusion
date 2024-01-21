@@ -1,41 +1,59 @@
 import { Random } from "koishi";
-import { ZhName, EnName, pifIdMax, pokeIdToPifIdMap, pifIdToPokeIdMap, PifId, PokeId, ZhNameToPokeId, EnNameToPokeId } from "./consts";
+import { ZhName, EnName, pokeIdToPifIdMap, pifIdToPokeIdMap, PifId, PokeId, ZhNameToPokeId, EnNameToPokeId, PifIdToSpecialName, SpecialName } from "./consts";
+import { PifValidMatrix, PifIdToMatrixId, MatrixIdToPifId } from "./valid_matrix";
 
-// const validFuseMap: Map<PifId, Array<PifId>> = {
+const PifIdRegex = /[\d_]+/;
 
-// }
+export function validCustomFusion(head: PifId, body: PifId): boolean {
+  return PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]].length > 0;
+}
 
 export function tryParseIntoPifId(parsee: string | undefined): PifId | undefined | null {
-  if (parsee === undefined) return undefined;
-
-  let pokeId = 0;
+  if (parsee === undefined || parsee === "0") return undefined;
 
   if (!isNaN(Number(parsee))) {
-    pokeId = parseInt(parsee);
-    if (pokeId === 0) return undefined;
+    return tryGetPifIdFromPokeId(parseInt(parsee));
   } else if (typeof parsee === "string") {
-    pokeId = tryGetPokeIdFromName(parsee);
-    if (pokeId === null) return null;
+    const pifId = tryGetPifIdFromName(parsee);
+    return pifId;
   } else {
     return null;
   }
-
-  return tryGetPifIdFromPokeId(pokeId);
 }
 
 export function randFuse(): Array<PifId> {
-  const randHead = Random.int(1, pifIdMax);
-  const randBody = Random.int(1, pifIdMax);
+  const randHeadMatrixId = Random.int(0, Object.keys(PifIdToMatrixId).length);
+  const randHead = MatrixIdToPifId[randHeadMatrixId];
+  const headLock = PifValidMatrix[randHeadMatrixId];
+  const validSelection: Array<number> = [];
+  headLock.forEach((variants,index) => {
+    if (variants.length > 0)
+      validSelection.push(index);
+  });
+  const randBody = MatrixIdToPifId[validSelection[Random.int(0, validSelection.length)]];
+  
   return [randHead, randBody];
 }
 
 export function randFuseByHead(head: PifId): Array<PifId> {
-  const randBody = Random.int(1, pifIdMax);
+  const headLock = PifValidMatrix[PifIdToMatrixId[head]];
+  const validSelection: Array<number> = [];
+  headLock.forEach((variants,index) => {
+    if (variants.length > 0)
+      validSelection.push(index);
+  });
+  const randBody = MatrixIdToPifId[validSelection[Random.int(0, validSelection.length)]];
   return [head, randBody];
 }
 
 export function randFuseByBody(body: PifId): Array<PifId> {
-  const randHead = Random.int(1, pifIdMax);
+  const validSelection: Array<number> = [];
+  const bodyMatrixId = PifIdToMatrixId[body];
+  PifValidMatrix.forEach((bodysVariants, index) => {
+    if (bodysVariants[bodyMatrixId].length > 0)
+      validSelection.push(index);
+  });
+  const randHead = MatrixIdToPifId[validSelection[Random.int(0, validSelection.length)]];
   return [randHead, body];
 }
 
@@ -46,9 +64,15 @@ export function tryGetPokeIdFromName(name: string): PokeId | null {
   else return null;
 }
 
+export function tryGetPifIdFromName(name: string): PifId | null {
+  name = name.toLocaleLowerCase();
+  if (SpecialName[name]) return SpecialName[name];
+  return tryGetPifIdFromPokeId(tryGetPokeIdFromName(name));
+}
+
 function tryGetPifIdFromPokeId(pokeId: PokeId): PifId | null {
   if (pokeId <= -1) return null;
-  else if (pokeId <= 251) return pokeId; // 初代和二代宝可梦Id相同
+  else if (pokeId <= 251) return pokeId.toString(); // 初代和二代宝可梦Id相同
   else if (pokeIdToPifIdMap[pokeId]) {
     const pifIds = pokeIdToPifIdMap[pokeId];
     if (pifIds instanceof Array) {
@@ -60,13 +84,16 @@ function tryGetPifIdFromPokeId(pokeId: PokeId): PifId | null {
 }
 
 function tryGetPokeIdFromPifId(pifId: PifId): PokeId | null {
-  if (pifId === 0 || pifId < -1) return null;
-  else if (pifId <= 251) return pifId; // 初代和二代宝可梦Id相同
+  const pifIdInt = parseInt(pifId);
+  if (pifIdInt === 0 || pifIdInt < -1) return null;
+  else if (pifIdInt <= 251) return pifIdInt; // 初代和二代宝可梦Id相同
   else if (pifIdToPokeIdMap[pifId]) return pifIdToPokeIdMap[pifId];
   else return null;
 }
 
 export function getPokeNameByPifId(pifId: PifId): string {
+  if (PifIdToSpecialName[pifId]) return PifIdToSpecialName[pifId];
+  
   const pokeId = tryGetPokeIdFromPifId(pifId);
   if (pokeId === null) return "Error";
 
@@ -82,5 +109,7 @@ export function getPifUrlAll(head: PifId, body: PifId): string {
 }
 
 export function getPifUrl(head: PifId, body: PifId): string {
-  return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}.${body}.png?ref_type=heads`;
+  const variants = PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]].split(",");
+  let variant = variants[Random.int(0, variants.length)].trim();
+  return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}.${body}${variant}.png?ref_type=heads`;
 }

@@ -1,6 +1,5 @@
-import { Random, isInteger } from "koishi";
-import { ZhName, EnName, pifIdMax, pokeIdToPifIdMap, pifIdToPokeIdMap, PifId, PokeId } from "./consts";
-
+import { Random } from "koishi";
+import { ZhName, EnName, pifIdMax, pokeIdToPifIdMap, pifIdToPokeIdMap, PifId, PokeId, ZhNameToPokeId, EnNameToPokeId } from "./consts";
 
 // const validFuseMap: Map<PifId, Array<PifId>> = {
 
@@ -40,10 +39,10 @@ export function randFuseByBody(body: PifId): Array<PifId> {
   return [randHead, body];
 }
 
-function tryGetPokeIdFromName(name: string): PokeId | null {
+export function tryGetPokeIdFromName(name: string): PokeId | null {
   name = name.toLocaleLowerCase();
-  if (ZhName.indexOf(name) >= 0) return ZhName.indexOf(name) + 1;
-  else if (EnName.indexOf(name) >= 0) return EnName.indexOf(name) + 1;
+  if (ZhNameToPokeId[name]) return ZhNameToPokeId[name];
+  else if (EnNameToPokeId[name]) return EnNameToPokeId[name];
   else return null;
 }
 

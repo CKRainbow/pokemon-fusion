@@ -1,5 +1,5 @@
 import { Context, Schema, h } from "koishi";
-import { getPifUrl, getPifUrlAll, getPokeNameByPifId, randFuse, randFuseByBody, randFuseByHead, tryParseIntoPifId } from "./utils";
+import { getPifUrl, getPifUrlAll, getPokeNameByPifId, randFuse, randFuseByBody, randFuseByHead, tryGetPokeIdFromName, tryParseIntoPifId } from "./utils";
 
 export const name = "pokemon-fusion";
 
@@ -62,8 +62,16 @@ export function apply(ctx: Context) {
     })
     .alias("随机融合", { args: ["0", "0"] })
     .alias("全随机融合", { args: ["0", "0"], options: { all: true } })
-    .shortcut(/^锁头 (\b.*\b).*$/, { args: ["$1", "0"] })
-    .shortcut(/^锁身 (\b.*\b).*$/, { args: ["0", "$1"] })
+    .shortcut(/^锁头 (\S*)\s*$/, { args: ["$1", "0"] })
+    .shortcut(/^锁身 (\S*)\s*$/, { args: ["0", "$1"] })
     .alias("融合")
     .usage("第一个参数代表头部，第二个参数代表身体，可以使用图鉴编号、中文名或英文名。\n输入0代表随机，参数--all代表无视人工图过滤。");
+
+  ctx.command("pid <name>", "查询宝可梦的全国图鉴Id").action((argv, name) => {
+    const pokeId = tryGetPokeIdFromName(name);
+
+    if (pokeId === null) return `好像没有找到${name}这只宝可梦。`;
+
+    return `${name}的全国图鉴Id是${pokeId}哦。`;
+  });
 }

@@ -2255,3 +2255,6 @@ export const EnName = [
   "overqwil",
   "enamorus",
 ];
+
+export const EnNameToPokeId = Object.fromEntries(EnName.map((n, idx) => [n, idx+1]));
+export const ZhNameToPokeId = Object.fromEntries(ZhName.map((n, idx) => [n, idx+1]));

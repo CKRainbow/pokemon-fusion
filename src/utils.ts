@@ -11,7 +11,7 @@ export function tryParseIntoPifId(parsee: string | undefined): PifId | undefined
 
   let pokeId = 0;
 
-  if (isInteger(parseFloat(parsee))) {
+  if (!isNaN(Number(parsee))) {
     pokeId = parseInt(parsee);
     if (pokeId === 0) return undefined;
   } else if (typeof parsee === "string") {

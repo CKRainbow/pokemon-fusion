@@ -1,9 +1,9 @@
 import { Context, Schema, h } from "koishi";
-import { getPifUrl, getPifUrlAll, getPokeNameByPifId, getValidVariant, randFuse, randFuseByBody, randFuseByHead, tryGetPokeIdFromName, tryParseIntoPifId, validCustomFusion} from "./utils";
+import { getPifUrl, getPifUrlAll, getPokeNameByPifId, getValidVariant, randFuse, randFuseByBody, randFuseByHead, tryGetPokeIdFromName, tryParseIntoPifId, validCustomFusion } from "./utils";
 
 export const name = "pokemon-fusion";
 
-export interface Config {}
+export interface Config { }
 
 export const Config: Schema<Config> = Schema.object({});
 
@@ -34,11 +34,12 @@ export function apply(ctx: Context) {
 
       let variant = argv.options.variant;
       let infoMessage = "";
+      if (variant === "") variant = " ";
 
       let url = "";
       if (validCustomFusion(headId, bodyId)) {
         const validVariant = getValidVariant(headId, bodyId, variant);
-        const selectedVariantName = validVariant === '' ? '基础' : validVariant;
+        const selectedVariantName = validVariant === ' ' ? '基础' : validVariant;
         if (variant !== validVariant && variant !== undefined) {
           infoMessage += `该融合并没有变体${variant}，故随机选择了变体:${selectedVariantName}\n`
           variant = validVariant;
@@ -46,7 +47,7 @@ export function apply(ctx: Context) {
           variant = validVariant;
           infoMessage += `选择了变体:${selectedVariantName}\n`
         }
-        
+
         url = getPifUrl(headId, bodyId, variant);
       } else if (options.all) {
         url = getPifUrlAll(headId, bodyId);
@@ -68,5 +69,5 @@ export function apply(ctx: Context) {
     if (pokeId === null) return `好像没有找到${name}这只宝可梦。`;
 
     return `${name}的全国图鉴Id是${pokeId}哦。`;
-  });
+  }).alias("图鉴");
 }

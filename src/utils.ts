@@ -109,7 +109,7 @@ export function getPokeNameByPokeId(pokeId: PokeId): string {
 export function getValidVariant(head: PifId, body: PifId, variant?: string): string {
   const variants = PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]].split(",");
   if (variants.indexOf(variant) === -1)
-    variant = variants[Random.int(0, variants.length)].trim();
+    variant = variants[Random.int(0, variants.length)];
 
   return variant;
 }
@@ -119,5 +119,6 @@ export function getPifUrlAll(head: PifId, body: PifId): string {
 }
 
 export function getPifUrl(head: PifId, body: PifId, variant: string): string {
+  variant = variant.trim();
   return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}.${body}${variant}.png?ref_type=heads`;
 }

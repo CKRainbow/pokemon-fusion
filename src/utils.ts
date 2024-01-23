@@ -8,6 +8,10 @@ export function validCustomFusion(head: PifId, body: PifId): boolean {
   return PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]].length > 0;
 }
 
+export function getFusionVariants(head: PifId, body: PifId): Array<string> {
+  return PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]].split(",");
+}
+
 export function tryParseIntoPifId(parsee: string | undefined): PifId | undefined | null {
   if (parsee === undefined || parsee === "0") return undefined;
 
@@ -19,6 +23,33 @@ export function tryParseIntoPifId(parsee: string | undefined): PifId | undefined
   } else {
     return null;
   }
+}
+
+const HeadBodyRegex = /原来是(.+)和(.+)！/;
+const VariantRegex = /变体:([a-z基础]+).*/;
+
+export function tryParseFuseMessage(message: string): [PifId | null, PifId | null, string | null] {
+  let match = message.match(HeadBodyRegex);
+  if (match === null) return [null, null, null];
+
+  console.log(match)
+
+  const head = match[1];
+  const body = match[2];
+
+  const headId = tryParseIntoPifId(head);
+  const bodyId = tryParseIntoPifId(body);
+
+  console.log(headId, bodyId)
+
+  if (headId === null) return [null, bodyId, null];
+  if (bodyId === null) return [headId, null, null];
+
+  match = message.match(VariantRegex);
+  if (match === null) return [headId, bodyId, null];
+  let variant = match[1];
+  
+  return [headId, bodyId, variant];
 }
 
 export function randFuse(): Array<PifId> {

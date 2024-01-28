@@ -32,15 +32,11 @@ export function tryParseFuseMessage(message: string): [PifId | null, PifId | nul
   let match = message.match(HeadBodyRegex);
   if (match === null) return [null, null, null];
 
-  console.log(match)
-
   const head = match[1];
   const body = match[2];
 
   const headId = tryParseIntoPifId(head);
   const bodyId = tryParseIntoPifId(body);
-
-  console.log(headId, bodyId)
 
   if (headId === null) return [null, bodyId, null];
   if (bodyId === null) return [headId, null, null];
@@ -48,7 +44,7 @@ export function tryParseFuseMessage(message: string): [PifId | null, PifId | nul
   match = message.match(VariantRegex);
   if (match === null) return [headId, bodyId, null];
   let variant = match[1];
-  
+
   return [headId, bodyId, variant];
 }
 
@@ -57,21 +53,19 @@ export function randFuse(): Array<PifId> {
   const randHead = MatrixIdToPifId[randHeadMatrixId];
   const headLock = PifValidMatrix[randHeadMatrixId];
   const validSelection: Array<number> = [];
-  headLock.forEach((variants,index) => {
-    if (variants.length > 0)
-      validSelection.push(index);
+  headLock.forEach((variants, index) => {
+    if (variants.length > 0) validSelection.push(index);
   });
   const randBody = MatrixIdToPifId[validSelection[Random.int(0, validSelection.length)]];
-  
+
   return [randHead, randBody];
 }
 
 export function randFuseByHead(head: PifId): Array<PifId> {
   const headLock = PifValidMatrix[PifIdToMatrixId[head]];
   const validSelection: Array<number> = [];
-  headLock.forEach((variants,index) => {
-    if (variants.length > 0)
-      validSelection.push(index);
+  headLock.forEach((variants, index) => {
+    if (variants.length > 0) validSelection.push(index);
   });
   const randBody = MatrixIdToPifId[validSelection[Random.int(0, validSelection.length)]];
   return [head, randBody];
@@ -81,8 +75,7 @@ export function randFuseByBody(body: PifId): Array<PifId> {
   const validSelection: Array<number> = [];
   const bodyMatrixId = PifIdToMatrixId[body];
   PifValidMatrix.forEach((bodysVariants, index) => {
-    if (bodysVariants[bodyMatrixId].length > 0)
-      validSelection.push(index);
+    if (bodysVariants[bodyMatrixId].length > 0) validSelection.push(index);
   });
   const randHead = MatrixIdToPifId[validSelection[Random.int(0, validSelection.length)]];
   return [randHead, body];
@@ -126,7 +119,7 @@ function tryGetPokeIdFromPifId(pifId: PifId): PokeId | null {
 
 export function getPokeNameByPifId(pifId: PifId): string {
   if (PifIdToSpecialName[pifId]) return PifIdToSpecialName[pifId];
-  
+
   const pokeId = tryGetPokeIdFromPifId(pifId);
   if (pokeId === null) return "Error";
 
@@ -139,8 +132,7 @@ export function getPokeNameByPokeId(pokeId: PokeId): string {
 
 export function getValidVariant(head: PifId, body: PifId, variant?: string): string {
   const variants = PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]].split(",");
-  if (variants.indexOf(variant) === -1)
-    variant = variants[Random.int(0, variants.length)];
+  if (variants.indexOf(variant) === -1) variant = variants[Random.int(0, variants.length)];
 
   return variant;
 }
@@ -150,6 +142,7 @@ export function getPifUrlAll(head: PifId, body: PifId): string {
 }
 
 export function getPifUrl(head: PifId, body: PifId, variant: string): string {
+  // TODO: 支持非融合图
   variant = variant.trim();
   return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}.${body}${variant}.png?ref_type=heads`;
 }

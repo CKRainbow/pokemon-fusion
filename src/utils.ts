@@ -27,6 +27,7 @@ export function tryParseIntoPifId(parsee: string | undefined): PifId | undefined
 
 const HeadBodyRegex = /原来是(.+)和(.+)！/;
 const VariantRegex = /变体:([a-z基础]+).*/;
+export const AtRegex = /<at id="(.+)" name="(.+)"\/>/;
 
 export function tryParseFuseMessage(message: string): [PifId | null, PifId | null, string | null] {
   let match = message.match(HeadBodyRegex);
@@ -128,6 +129,12 @@ export function getPokeNameByPifId(pifId: PifId): string {
 
 export function getPokeNameByPokeId(pokeId: PokeId): string {
   return ZhName[pokeId - 1];
+}
+
+export function getVariantName(variant: string): string {
+  if (variant === "" || variant === " " || variant === "vanilla") return "基础";
+  if (variant === "autogen") return "自动生成";
+  return variant;
 }
 
 export function getValidVariant(head: PifId, body: PifId, variant?: string): string {

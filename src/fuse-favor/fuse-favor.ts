@@ -1,6 +1,7 @@
 import { Context, Random, h } from "koishi";
-import { getFusionVariants, getPifUrl, getPifUrlAll, getPokeNameByPifId, tryParseFuseMessage, tryParseIntoPifId } from "../utils";
+import { AtRegex, getFusionVariants, getPifUrl, getPifUrlAll, getPokeNameByPifId, getVariantName, tryParseFuseMessage, tryParseIntoPifId } from "../utils";
 import { PifId } from "../consts";
+import { displayFavorEntry } from "./utils";
 
 declare module "koishi" {
   interface Tables {
@@ -86,8 +87,9 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
 
       if (variant == " ") variant = "vanilla";
 
-      // const uid = session.userId;
-      const uid = session.user.id;
+      const uid = session.event.user.id;
+      // const uid = session.user.id;
+      const uname = session.event.user.name;
 
       const id = await ctx.database.get("fuseFavor", {
         head: headId,
@@ -97,7 +99,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       });
 
       if (id.length > 0) {
-        return `${uid} 已经在喜欢了！`;
+        return `${uname}已经在喜欢了！`;
       }
 
       await ctx.database.create("fuseFavor", {
@@ -107,7 +109,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         user: uid,
       });
 
-      return `${headId} ${bodyId} ${variant} 融合已经加入 ${uid} 的喜欢列表`;
+      return `原来${uname}喜欢${displayFavorEntry(headId, bodyId, variant)}！`;
     })
     .alias("喜欢")
     .alias("喜欢这个");
@@ -133,8 +135,9 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       }
 
       let variant = argv.options.variant;
-      // const uid = session.userId;
-      const uid = session.user.id;
+      const uid = session.event.user.id;
+      // const uid = session.user.id;
+      const uname = session.event.user.name;
 
       const variants = await ctx.database.get("fuseFavor", {
         head: headId,
@@ -165,41 +168,79 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         await ctx.database.remove("fuseFavor", [target[0].id]);
       }
 
-      return `${headId} ${bodyId} ${variant} 融合已经从 ${uid} 的喜欢列表移除了`;
+      return `${uname}已经不喜欢${displayFavorEntry(headId, bodyId, variant)}了吗？`;
     });
 
   ctx.command("showff", "显示喜欢列表").action(async (argv) => {
-    // const uid = argv.session.userId;
-    const uid = argv.session.user.id;
-    const list = await ctx.database.get("fuseFavor", {
-      user: uid,
-    });
-    return (
-      `${uid}很喜欢这些融合:\n` +
-      `${list
-        .map((v) => {
-          const headName = getPokeNameByPifId(v.head);
-          const bodyName = getPokeNameByPifId(v.body);
-          return `${headName}-${bodyName}(${v.variant}变体)`;
-        })
-        .join(",\n")}`
-    );
-  });
+    const match = argv.source.match(AtRegex);
 
-  ctx.command("randff", "随机显示喜欢的融合").action(async (argv) => {
-    // TODO: extract id from <at/>
-    const uid = argv.session.user.id;
+    let uid = "";
+    let uname = "";
+
+    if (match !== null) {
+      uid = match[1];
+      uname = match[2];
+    } else {
+      const uid = argv.session.event.user.id;
+      // uid = argv.session.user.id;
+      uname = argv.session.event.user.name;
+    }
     const list = await ctx.database.get("fuseFavor", {
       user: uid,
     });
 
     if (list.length === 0) {
-      return "你还没有喜欢的融合哦";
+      return `${uname}还没有喜欢的融合哦。`;
+    }
+
+    const rand = Random.int(0, 2);
+
+    if (rand === 0) {
+      return `${uname}喜欢这些融合:` + h("br") + `${list.map((v) => displayFavorEntry(v.head, v.body, v.variant)).join(",\n")}`;
+    } else if (rand === 1) {
+      const favorDict: { [key: string]: number } = {};
+      list.forEach((entry) => {
+        favorDict[entry.head] = (favorDict[entry.head] ?? 0) + 1;
+        favorDict[entry.body] = (favorDict[entry.body] ?? 0) + 1;
+      });
+      let favorate: string = "";
+      let max: number = 0;
+      Object.entries(favorDict).forEach(([k, v]) => {
+        if (v > max) {
+          favorate = k;
+          max = v;
+        }
+      });
+      return `${uname}最喜欢的宝可梦应该是${getPokeNameByPifId(favorate)}吧！`;
+    }
+
+    return `${uname}很喜欢这些融合:` + h("br") + `${list.map((v) => displayFavorEntry(v.head, v.body, v.variant)).join(",\n")}`;
+  });
+
+  ctx.command("randff", "随机显示喜欢的融合").action(async (argv) => {
+    const match = argv.source.match(AtRegex);
+
+    let uid = "";
+    let uname = "";
+
+    if (match !== null) {
+      uid = match[1];
+      uname = match[2];
+    } else {
+      const uid = argv.session.event.user.id;
+      // uid = argv.session.user.id;
+      uname = argv.session.event.user.name;
+    }
+
+    const list = await ctx.database.get("fuseFavor", {
+      user: uid,
+    });
+
+    if (list.length === 0) {
+      return `${uname}还没有喜欢的融合哦。`;
     }
 
     const target = list[Random.int(0, list.length)];
-    const headName = getPokeNameByPifId(target.head);
-    const bodyName = getPokeNameByPifId(target.body);
 
     if (target.variant === "vanilla") target.variant = "";
 
@@ -210,6 +251,6 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       url = getPifUrl(target.head, target.body, target.variant);
     }
 
-    return `${headName}-${bodyName}(${target.variant}变体)\n` + h("img", { src: url });
+    return `${uid}很喜欢${displayFavorEntry(target.head, target.body, target.variant)}！\n` + h("img", { src: url });
   });
 }

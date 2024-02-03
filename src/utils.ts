@@ -5,7 +5,9 @@ import { PifValidMatrix, PifIdToMatrixId, MatrixIdToPifId } from "./valid_matrix
 const PifIdRegex = /[\d_]+/;
 
 export function validCustomFusion(head: PifId, body: PifId): boolean {
-  return PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]].length > 0;
+  const variants = PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]];
+  if (variants === undefined) return false;
+  return variants.length > 0;
 }
 
 export function getFusionVariants(head: PifId, body: PifId): Array<string> {
@@ -27,10 +29,16 @@ export function tryParseIntoPifId(parsee: string | undefined): PifId | undefined
 
 const HeadBodyRegex = /原来是(.+?)(和.+)?！/;
 const VariantRegex = /变体:\s*([a-z基础自动生成]+).*/;
+const FavorDisplayRegex = /(.+)-(.+)\((.+)变体\)/;
 export const AtRegex = /<at id="(.+)" name="(.+)"\/>/;
 
 export function tryParseFuseMessage(message: string): [PifId , PifId | undefined, string] | null {
-  let match = message.match(HeadBodyRegex);
+  let match = message.match(FavorDisplayRegex);
+  if (match === null || match.filter((m) => m !== undefined).length < 4) return null;
+
+  return [match[1], match[2], match[3]];
+
+  match = message.match(HeadBodyRegex);
   if (match === null || match.filter((m) => m !== undefined).length < 2) return null;
 
   const head: PifId = match[1];

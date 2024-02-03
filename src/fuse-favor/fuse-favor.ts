@@ -150,7 +150,11 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         user: aid,
       });
 
-      if (variant === undefined && variants.length > 1) {
+
+      if (variant === undefined && variants.length === 1) {
+        variant = variants[0].variant;
+      }
+      else if (variant === undefined) {
         await session.send(`从该融合的以下变体中选一个吧: \n${variants.join(",").replace(" ", "基础")}`);
         const result = await session.prompt(
           async (session) => {
@@ -164,7 +168,6 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         if (target.length === 0) return `好像并没有喜欢${result}这个变体呢。`;
 
         await ctx.database.remove("fuseFavor", [target[0].id]);
-      } else if (variant === undefined && variants.length === 1) {
         await ctx.database.remove("fuseFavor", [variants[0].id]);
       } else {
         const target = variants.filter((v) => v.variant === variant);

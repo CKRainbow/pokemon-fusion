@@ -1,5 +1,5 @@
 import { Context, Random, h } from "koishi";
-import { AtRegex, getFusionVariants, getPifUrl, getPifUrlAll, getPokeNameByPifId, tryParseFuseMessageByLink, tryParseIntoPifId } from "../utils";
+import { AtRegex, getFusionVariants, getPifUrl, getPifUrlAll, getPokeNameByPifId, tryParseFuseMessage, tryParseFuseMessageByLink, tryParseIntoPifId } from "../utils";
 import { PifId } from "../consts";
 import { displayFavorEntry, getAidAsync } from "./utils";
 
@@ -53,7 +53,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       if (argv.source.includes("autogen")) autogen = true;
 
       if (head === undefined || body === undefined) {
-        const result = tryParseFuseMessageByLink(argv.source);
+        const result = tryParseFuseMessage(argv.source);
         if (result === null) {
           return `你都喜欢了些什么啊！`;
         }
@@ -69,10 +69,12 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         }
       }
 
+      if (variant === "自动生成") autogen = true;
+
       if (autogen) variant = "autogen";
       else if (variant === null) variant = argv.options.variant;
       const variants = getFusionVariants(headId, bodyId);
-      if (variant === undefined) {
+      if (variant === undefined && variants.length > 1) {
         await session.send(`从该融合的以下变体中选一个吧: \n${variants.join(",").replace(" ", "基础")}`);
         const result = await session.prompt(
           async (session) => {
@@ -92,8 +94,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       if (variant == " ") variant = "vanilla";
 
       const uid = session.event.user.id;
-      const uname = session.event.user.name;
-      // const uname = session.username;
+      const uname = session.username;
       const aid = await getAidAsync(ctx, uid);
 
       const id = await ctx.database.get("fuseFavor", {
@@ -115,7 +116,6 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       });
 
       // FIXME: uname为空？
-
       return `原来${uname}喜欢${displayFavorEntry(headId, bodyId, variant)}！`;
     })
     .alias("喜欢")
@@ -187,7 +187,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       uname = match[2];
     } else {
       uid = argv.session.event.user.id;
-      uname = argv.session.event.user.name;
+      uname = argv.session.username;
     }
     const aid = await getAidAsync(ctx, uid);
     if (aid === null) return `${uname}还没有注册哦，无法显示喜欢的融合。`;
@@ -203,7 +203,9 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
     const rand = Random.int(0, 10);
 
     if (rand >= 2) {
-      return `${uname}喜欢这些融合: ` + h("br") + `${list.map((v) => displayFavorEntry(v.head, v.body, v.variant)).join(",\n")}`;
+      let response = `${uname}喜欢这些融合: ` + h("br") + `${list.slice(0, 10).map((v) => displayFavorEntry(v.head, v.body, v.variant)).join(",\n")}`;
+      if (list.length > 10) response += `\n(……总共${list.length}种)`;
+      return response;
     } else if (rand < 2) {
       const favorDict: { [key: string]: number } = {};
       list.forEach((entry) => {
@@ -235,7 +237,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       uname = match[2];
     } else {
       uid = argv.session.event.user.id;
-      uname = argv.session.event.user.name;
+      uname = argv.session.username;
     }
     const aid = await getAidAsync(ctx, uid);
 

@@ -25,25 +25,25 @@ export function tryParseIntoPifId(parsee: string | undefined): PifId | undefined
   }
 }
 
-const HeadBodyRegex = /原来是(.+)和(.+)！/;
-const VariantRegex = /变体:([a-z基础]+).*/;
+const HeadBodyRegex = /原来是(.+?)(和.+)?！/;
+const VariantRegex = /变体:\s*([a-z基础自动生成]+).*/;
 export const AtRegex = /<at id="(.+)" name="(.+)"\/>/;
 
-export function tryParseFuseMessage(message: string): [PifId | null, PifId | null, string | null] {
+export function tryParseFuseMessage(message: string): [PifId , PifId | undefined, string] | null {
   let match = message.match(HeadBodyRegex);
-  if (match === null) return [null, null, null];
+  if (match === null || match.filter((m) => m !== undefined).length < 2) return null;
 
-  const head = match[1];
-  const body = match[2];
+  const head: PifId = match[1];
+  const body: PifId | undefined = match[2] === undefined ? undefined : match[2].slice(1);
 
   const headId = tryParseIntoPifId(head);
   const bodyId = tryParseIntoPifId(body);
 
-  if (headId === null) return [null, bodyId, null];
-  if (bodyId === null) return [headId, null, null];
+  if (headId === null) return null;
+  if (bodyId === null) return null;
 
   match = message.match(VariantRegex);
-  if (match === null) return [headId, bodyId, null];
+  if (match === null || match.filter((m) => m !== undefined).length < 2) return null;
   let variant = match[1];
 
   return [headId, bodyId, variant];
@@ -64,7 +64,7 @@ export function tryParseFuseMessageByLink(message: string): [PifId, PifId | unde
     bodyId = match[2];
   } else if (message.includes("customsprites")) {
     let match = message.match(customLinkRegex);
-    if (match === null || match.filter((m) => m !== undefined).length < 4) return null;
+    if (match === null || match.filter((m) => m !== undefined).length < 3) return null;
 
     // original image without fusion
     if (match[1] === "") {

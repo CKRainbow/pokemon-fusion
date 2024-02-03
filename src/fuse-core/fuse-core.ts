@@ -57,17 +57,17 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
         const validVariant = getValidVariant(headId, bodyId, variant);
         const selectedVariantName = validVariant === " " ? "基础" : validVariant;
         if (variant !== validVariant && variant !== undefined) {
-          infoMessage += `该融合并没有变体${variant}，故随机选择了变体:${selectedVariantName}\n`;
+          infoMessage += `该融合并没有变体${variant}，故随机选择了变体: ${selectedVariantName}\n`;
           variant = validVariant;
         } else {
           variant = validVariant;
-          infoMessage += `选择了变体:${selectedVariantName}\n`;
+          infoMessage += `选择了变体: ${selectedVariantName}\n`;
         }
 
         url = getPifUrl(headId, bodyId, variant);
       } else if (options.all) {
         url = getPifUrlAll(headId, bodyId);
-        infoMessage += `融合不太符合预期呢。\n`;
+        infoMessage += `选择了变体: 自动生成\n`;
       } else {
         return `暂时还没有这种融合呢。`;
       }

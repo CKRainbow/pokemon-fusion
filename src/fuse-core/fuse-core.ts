@@ -5,6 +5,7 @@ import {
   getPokeNameByPifId,
   getValidVariant,
   randFuse,
+  randFuseAll,
   randFuseByBody,
   randFuseByHead,
   tryGetPokeIdFromName,
@@ -21,6 +22,7 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
     .command("fuse [head] [body]", "获得某两个宝可梦的融合")
     .option("all", "-a 无视人工图要求")
     .option("variant", "-v [variant] 指定变体", { type: /^[a-z]*$/ })
+    // TODO: 指定未融合图
     .action((argv, head, body) => {
       const options = argv.options;
 
@@ -33,7 +35,10 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
         return `尚不支持该身体宝可梦`;
       }
 
-      // FIXME: --all 时无法获得人工图，只会使用机器生成的融合图
+      if (options.all) {
+        if (headId === undefined) headId = randFuseAll();
+        if (bodyId === undefined) bodyId = randFuseAll();
+      }
 
       if (headId === undefined && bodyId === undefined) {
         [headId, bodyId] = randFuse();
@@ -62,6 +67,7 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
         url = getPifUrl(headId, bodyId, variant);
       } else if (options.all) {
         url = getPifUrlAll(headId, bodyId);
+        infoMessage += `融合不太符合预期呢。\n`;
       } else {
         return `暂时还没有这种融合呢。`;
       }
@@ -76,7 +82,7 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
 
   ctx
     .command("pid <name>", "查询宝可梦的全国图鉴Id")
-    .action((argv, name) => {
+    .action((_, name) => {
       const pokeId = tryGetPokeIdFromName(name);
 
       if (pokeId === null) return `好像没有找到${name}这只宝可梦。`;

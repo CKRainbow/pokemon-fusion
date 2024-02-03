@@ -49,6 +49,40 @@ export function tryParseFuseMessage(message: string): [PifId | null, PifId | nul
   return [headId, bodyId, variant];
 }
 
+const autogenLinkRegex = /\/([\d_]+)\.([\d_]+)\.png/;
+const customLinkRegex = /\/([\d_]+\.)?([\d_]+)([a-z]*)?\.png/;
+
+export function tryParseFuseMessageByLink(message: string): [PifId, PifId | undefined, string] | null {
+  let headId = undefined;
+  let bodyId = undefined;
+  let variant = undefined;
+  if (message.includes("autogen-fusion-sprites")) {
+    let match = message.match(autogenLinkRegex);
+    if (match === null || match.filter((m) => m !== undefined).length < 3) return null;
+
+    headId = match[1];
+    bodyId = match[2];
+  } else if (message.includes("customsprites")) {
+    let match = message.match(customLinkRegex);
+    if (match === null || match.filter((m) => m !== undefined).length < 4) return null;
+
+    // original image without fusion
+    if (match[1] === "") {
+      headId = match[2];
+      bodyId = undefined;
+      variant = match[3] === undefined ? "" : match[3];
+    } else {
+      headId = match[1].slice(0, -1);
+      bodyId = match[2];
+      variant = match[3] === undefined ? "" : match[3];
+    }
+  } else {
+    return null;
+  }
+
+  return [headId, bodyId, variant];
+}
+
 export function randFuse(): Array<PifId> {
   const randHeadMatrixId = Random.int(0, Object.keys(PifIdToMatrixId).length);
   const randHead = MatrixIdToPifId[randHeadMatrixId];
@@ -70,6 +104,10 @@ export function randFuseByHead(head: PifId): Array<PifId> {
   });
   const randBody = MatrixIdToPifId[validSelection[Random.int(0, validSelection.length)]];
   return [head, randBody];
+}
+
+export function randFuseAll(): PifId {
+  return MatrixIdToPifId[Random.int(0, Object.keys(PifIdToMatrixId).length)];
 }
 
 export function randFuseByBody(body: PifId): Array<PifId> {
@@ -148,8 +186,9 @@ export function getPifUrlAll(head: PifId, body: PifId): string {
   return `https://gitlab.com/pokemoninfinitefusion/autogen-fusion-sprites/-/raw/master/Battlers/${head}/${head}.${body}.png?ref_type=heads`;
 }
 
-export function getPifUrl(head: PifId, body: PifId, variant: string): string {
-  // TODO: 支持非融合图
+export function getPifUrl(head: PifId, body?: PifId, variant?: string): string {
+  if (variant === undefined) variant = "";
   variant = variant.trim();
-  return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}.${body}${variant}.png?ref_type=heads`;
+  if (body === undefined) return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}${variant}.png?ref_type=heads`;
+  else return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}.${body}${variant}.png?ref_type=heads`;
 }

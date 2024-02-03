@@ -1,5 +1,5 @@
 import { Context, Random, h } from "koishi";
-import { AtRegex, getFusionVariants, getPifUrl, getPifUrlAll, getPokeNameByPifId, getVariantName, tryParseFuseMessage, tryParseIntoPifId } from "../utils";
+import { AtRegex, getFusionVariants, getPifUrl, getPifUrlAll, getPokeNameByPifId, tryParseFuseMessageByLink, tryParseIntoPifId } from "../utils";
 import { PifId } from "../consts";
 import { displayFavorEntry, getAidAsync } from "./utils";
 
@@ -48,15 +48,17 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
 
       const session = argv.session;
       let autogen = false;
+      let [headId, bodyId, variant] = [undefined, undefined, undefined];
 
       if (argv.source.includes("autogen")) autogen = true;
 
-      let [headId, bodyId, variant] = tryParseFuseMessage(argv.source);
-
-      if (headId === null || bodyId === null) {
-        if (head == undefined) return `请指定头部宝可梦`;
-        if (body == undefined) return `请指定身体宝可梦`;
-
+      if (head === undefined || body === undefined) {
+        const result = tryParseFuseMessageByLink(argv.source);
+        if (result === null) {
+          return `你都喜欢了些什么啊！`;
+        }
+        [headId, bodyId, variant] = result;
+      } else {
         headId = tryParseIntoPifId(head);
         bodyId = tryParseIntoPifId(body);
 
@@ -71,17 +73,19 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       else if (variant === null) variant = argv.options.variant;
       const variants = getFusionVariants(headId, bodyId);
       if (variant === undefined) {
-        await session.send(`从该融合的以下变体中选一个吧:\n${variants.join(",").replace(" ", "基础")}`);
+        await session.send(`从该融合的以下变体中选一个吧: \n${variants.join(",").replace(" ", "基础")}`);
         const result = await session.prompt(
           async (session) => {
             return session.event.message.elements[0].attrs.content;
           },
-          { timeout: 6000 }
+          { timeout: 10000 }
         );
         if (result === undefined) return `看来你还没有决定好呢。`;
         variant = result;
       }
       variant = variant === "" || variant === "基础" ? " " : variant;
+
+      // FIXME: 会出现无对应融合的问题？
 
       if (variants.indexOf(variant) === -1 && !autogen) return `暂时还没有这种融合呢。`;
 
@@ -89,6 +93,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
 
       const uid = session.event.user.id;
       const uname = session.event.user.name;
+      // const uname = session.username;
       const aid = await getAidAsync(ctx, uid);
 
       const id = await ctx.database.get("fuseFavor", {
@@ -109,21 +114,20 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         user: aid,
       });
 
+      // FIXME: uname为空？
+
       return `原来${uname}喜欢${displayFavorEntry(headId, bodyId, variant)}！`;
     })
     .alias("喜欢")
     .alias("喜欢这个");
 
   ctx
-    .command("unlikef [head] [body]", "将该融合从喜欢列表中删除")
+    .command("unlikef <head> <body>", "将该融合从喜欢列表中删除")
     .option("variant", "-v [variant] 指定变体，仅在非引用回复时有效", { type: /^[a-z]*$/ })
     .action(async (argv, head, body) => {
       if (argv.args.length < 1) return ``;
 
       const session = argv.session;
-
-      if (head == undefined) return `请指定头部宝可梦`;
-      if (body == undefined) return `请指定身体宝可梦`;
 
       const headId = tryParseIntoPifId(head);
       const bodyId = tryParseIntoPifId(body);
@@ -147,7 +151,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       });
 
       if (variant === undefined && variants.length > 1) {
-        await session.send(`从该融合的以下变体中选一个吧:\n${variants.join(",").replace(" ", "基础")}`);
+        await session.send(`从该融合的以下变体中选一个吧: \n${variants.join(",").replace(" ", "基础")}`);
         const result = await session.prompt(
           async (session) => {
             return session.event.message.elements[0].attrs.content;
@@ -199,7 +203,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
     const rand = Random.int(0, 10);
 
     if (rand >= 2) {
-      return `${uname}喜欢这些融合:` + h("br") + `${list.map((v) => displayFavorEntry(v.head, v.body, v.variant)).join(",\n")}`;
+      return `${uname}喜欢这些融合: ` + h("br") + `${list.map((v) => displayFavorEntry(v.head, v.body, v.variant)).join(",\n")}`;
     } else if (rand < 2) {
       const favorDict: { [key: string]: number } = {};
       list.forEach((entry) => {
@@ -217,7 +221,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       return `${uname}最喜欢的宝可梦应该是${getPokeNameByPifId(favorate)}吧！`;
     }
 
-    return `${uname}很喜欢这些融合:\n` + `${list.map((v) => displayFavorEntry(v.head, v.body, v.variant)).join(",\n")}`;
+    return `${uname}很喜欢这些融合: \n` + `${list.map((v) => displayFavorEntry(v.head, v.body, v.variant)).join(",\n")}`;
   });
 
   ctx.command("randff", "随机显示喜欢的融合").action(async (argv) => {

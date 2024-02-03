@@ -19,7 +19,7 @@
     "pokemon"
   ],
   "peerDependencies": {
-    "koishi": "^4.16.6"
+    "koishi": "^4.16.8"
   },
   "repository": {
     "type": "git",
@@ -33,6 +33,8 @@
       "en": "A plugin that will provide fused pokemon images from Pokemon Infinite Fusion.",
       "zh": "目前可以指定或随机显示 Pokemon Infinite Fusion中的融合宝可梦的图像。"
     },
-    "preview": true
+    "services": {
+      "required": ["database"]
+    }
   }
 }

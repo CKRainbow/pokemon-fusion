@@ -182,7 +182,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
     let uid = "";
     let uname = "";
 
-    if (match !== null) {
+    if (match !== null && match.filter((m)=>m!==undefined).length == 3) {
       uid = match[1];
       uname = match[2];
     } else {

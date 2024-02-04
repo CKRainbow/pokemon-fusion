@@ -34,9 +34,7 @@ export const AtRegex = /<at id="(.+)" name="(.+)"\/>/;
 
 export function tryParseFuseMessage(message: string): [PifId , PifId | undefined, string] | null {
   let match = message.match(FavorDisplayRegex);
-  if (match === null || match.filter((m) => m !== undefined).length < 4) return null;
-
-  return [match[1], match[2], match[3]];
+  if (match !== null && match.filter((m) => m !== undefined).length === 4)  return [match[1], match[2], match[3]];
 
   match = message.match(HeadBodyRegex);
   if (match === null || match.filter((m) => m !== undefined).length < 2) return null;

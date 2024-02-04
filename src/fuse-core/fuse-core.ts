@@ -30,9 +30,9 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
       let bodyId = tryParseIntoPifId(body);
 
       if (headId === null) {
-        return `尚不支持该头部宝可梦`;
+        return "尚不支持该头部宝可梦";
       } else if (bodyId === null) {
-        return `尚不支持该身体宝可梦`;
+        return "尚不支持该身体宝可梦";
       }
 
       if (options.all) {
@@ -42,7 +42,7 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
 
       if (headId === undefined && bodyId === undefined) {
         [headId, bodyId] = randFuse();
-      } else if (bodyId == undefined) {
+      } else if (bodyId === undefined) {
         [headId, bodyId] = randFuseByHead(headId);
       } else if (headId === undefined) {
         [headId, bodyId] = randFuseByBody(bodyId);
@@ -67,12 +67,12 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
         url = getPifUrl(headId, bodyId, variant);
       } else if (options.all) {
         url = getPifUrlAll(headId, bodyId);
-        infoMessage += `选择了变体: 自动生成\n`;
+        infoMessage += "选择了变体: 自动生成\n";
       } else {
-        return `暂时还没有这种融合呢。`;
+        return "暂时还没有这种融合呢。";
       }
 
-      return `要融合的宝可梦原来是${getPokeNameByPifId(headId)}和${getPokeNameByPifId(bodyId)}！\n` + infoMessage + h("img", { src: url });
+      return `要融合的宝可梦原来是${getPokeNameByPifId(headId)}和${getPokeNameByPifId(bodyId)}！\n${infoMessage}${h("img", {src: url})}`;
     })
     .alias("随机融合", { args: ["0", "0"] })
     .shortcut(/^锁头 (\S*)\s*$/, { args: ["$1", "0"] })

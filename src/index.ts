@@ -9,6 +9,8 @@ export interface Config {}
 
 export const Config: Schema<Config> = Schema.object({});
 
+// 添加一个别名功能，自用
+
 export function apply(ctx: Context) {
   ctx.plugin(FuseCore);
   ctx.plugin(FuseFavor);

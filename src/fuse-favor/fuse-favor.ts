@@ -1,5 +1,15 @@
 import { Context, Random, h } from "koishi";
-import { AtRegex, getFusionVariants, getPifUrl, getPifUrlAll, getPokeNameByPifId, tryParseFuseMessage, tryParseFuseMessageByLink, tryParseIntoPifId } from "../utils";
+import {
+  AtRegex,
+  getFusionVariants,
+  getPifUrl,
+  getPifUrlAll,
+  getPokeNameByPifId,
+  shuffle,
+  tryParseFuseMessage,
+  tryParseFuseMessageByLink,
+  tryParseIntoPifId,
+} from "../utils";
 import { PifId } from "../consts";
 import { displayFavorEntry, getAidAsync } from "./utils";
 
@@ -200,15 +210,23 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       return `${uname}还没有喜欢的融合哦。`;
     }
 
+    const shuffledList = shuffle(list);
+
     const rand = Random.int(0, 10);
 
     if (rand >= 2) {
-      let response = `${uname}喜欢这些融合: ` + h("br") + `${list.slice(0, 10).map((v) => displayFavorEntry(v.head, v.body, v.variant)).join(",\n")}`;
-      if (list.length > 10) response += `\n(……总共${list.length}种)`;
+      let response =
+        `${uname}喜欢这些融合: ` +
+        h("br") +
+        `${shuffledList
+          .slice(0, 10)
+          .map((v) => displayFavorEntry(v.head, v.body, v.variant))
+          .join(",\n")}`;
+      if (list.length > 10) response += `\n(……总共${shuffledList.length}种)`;
       return response;
     } else if (rand < 2) {
       const favorDict: { [key: string]: number } = {};
-      list.forEach((entry) => {
+      shuffledList.forEach((entry) => {
         favorDict[entry.head] = (favorDict[entry.head] ?? 0) + 1;
         favorDict[entry.body] = (favorDict[entry.body] ?? 0) + 1;
       });
@@ -222,8 +240,6 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       });
       return `${uname}最喜欢的宝可梦应该是${getPokeNameByPifId(favorate)}吧！`;
     }
-
-    return `${uname}很喜欢这些融合: \n` + `${list.map((v) => displayFavorEntry(v.head, v.body, v.variant)).join(",\n")}`;
   });
 
   ctx.command("randff", "随机显示喜欢的融合").action(async (argv) => {

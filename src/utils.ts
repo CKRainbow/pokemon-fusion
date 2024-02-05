@@ -29,7 +29,7 @@ const HeadBodyRegex = /原来是(.+?)(和.+)?！/;
 const VariantRegex = /变体:\s*([a-z基础自动生成]+).*/;
 export const AtRegex = /<at id="(.+)" name="(.+)"\/>/;
 
-export function tryParseFuseMessage(message: string): [PifId , PifId | undefined, string] | null {
+export function tryParseFuseMessage(message: string): [PifId, PifId | undefined, string] | null {
   let match = message.match(HeadBodyRegex);
   if (match === null || match.filter((m) => m !== undefined).length < 2) return null;
 
@@ -191,4 +191,12 @@ export function getPifUrl(head: PifId, body?: PifId, variant?: string): string {
   variant = variant.trim();
   if (body === undefined) return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}${variant}.png?ref_type=heads`;
   else return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}.${body}${variant}.png?ref_type=heads`;
+}
+
+export function shuffle(arr: any[]): any[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }

@@ -5,7 +5,9 @@ import { PifValidMatrix, PifIdToMatrixId, MatrixIdToPifId } from "./valid_matrix
 const PifIdRegex = /[\d_]+/;
 
 export function validCustomFusion(head: PifId, body: PifId): boolean {
-  return PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]].length > 0;
+  const variants = PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]];
+  if (variants === undefined) return false;
+  return variants.length > 0;
 }
 
 export function getFusionVariants(head: PifId, body: PifId): Array<string> {
@@ -27,10 +29,14 @@ export function tryParseIntoPifId(parsee: string | undefined): PifId | undefined
 
 const HeadBodyRegex = /原来是(.+?)(和.+)?！/;
 const VariantRegex = /变体:\s*([a-z基础自动生成]+).*/;
+const FavorDisplayRegex = /(.+)-(.+)\((.+)变体\)/;
 export const AtRegex = /<at id="(.+)" name="(.+)"\/>/;
 
 export function tryParseFuseMessage(message: string): [PifId, PifId | undefined, string] | null {
-  let match = message.match(HeadBodyRegex);
+  let match = message.match(FavorDisplayRegex);
+  if (match !== null && match.filter((m) => m !== undefined).length === 4) return [match[1], match[2], match[3]];
+
+  match = message.match(HeadBodyRegex);
   if (match === null || match.filter((m) => m !== undefined).length < 2) return null;
 
   const head: PifId = match[1];
@@ -44,7 +50,7 @@ export function tryParseFuseMessage(message: string): [PifId, PifId | undefined,
 
   match = message.match(VariantRegex);
   if (match === null || match.filter((m) => m !== undefined).length < 2) return null;
-  let variant = match[1];
+  const variant = match[1];
 
   return [headId, bodyId, variant];
 }
@@ -57,13 +63,13 @@ export function tryParseFuseMessageByLink(message: string): [PifId, PifId | unde
   let bodyId = undefined;
   let variant = undefined;
   if (message.includes("autogen-fusion-sprites")) {
-    let match = message.match(autogenLinkRegex);
+    const match = message.match(autogenLinkRegex);
     if (match === null || match.filter((m) => m !== undefined).length < 3) return null;
 
     headId = match[1];
     bodyId = match[2];
   } else if (message.includes("customsprites")) {
-    let match = message.match(customLinkRegex);
+    const match = message.match(customLinkRegex);
     if (match === null || match.filter((m) => m !== undefined).length < 3) return null;
 
     // original image without fusion
@@ -121,16 +127,16 @@ export function randFuseByBody(body: PifId): Array<PifId> {
 }
 
 export function tryGetPokeIdFromName(name: string): PokeId | null {
-  name = name.toLowerCase();
-  if (ZhNameToPokeId[name]) return ZhNameToPokeId[name];
-  else if (EnNameToPokeId[name]) return EnNameToPokeId[name];
+  const key = name.toLowerCase();
+  if (ZhNameToPokeId[key]) return ZhNameToPokeId[key];
+  else if (EnNameToPokeId[key]) return EnNameToPokeId[key];
   else return null;
 }
 
 export function tryGetPifIdFromName(name: string): PifId | null {
-  name = name.toLocaleLowerCase();
-  if (SpecialName[name]) return SpecialName[name];
-  const pokeId = tryGetPokeIdFromName(name);
+  const key = name.toLowerCase();
+  if (SpecialName[key]) return SpecialName[key];
+  const pokeId = tryGetPokeIdFromName(key);
   if (pokeId === null) return null;
   return tryGetPifIdFromPokeId(pokeId);
 }
@@ -140,12 +146,12 @@ function tryGetPifIdFromPokeId(pokeId: PokeId): PifId | null {
   else if (pokeId <= 251) return pokeId.toString(); // 初代和二代宝可梦Id相同
   else if (pokeIdToPifIdMap[pokeId]) {
     const pifIds = pokeIdToPifIdMap[pokeId];
-    if (pifIds instanceof Array) {
+    if (Array.isArray(pifIds)) {
       return pifIds[Random.int(pifIds.length)];
-    } else {
-      return pifIds;
     }
-  } else return null;
+    return pifIds;
+  }
+  return null;
 }
 
 function tryGetPokeIdFromPifId(pifId: PifId): PokeId | null {
@@ -153,7 +159,7 @@ function tryGetPokeIdFromPifId(pifId: PifId): PokeId | null {
   if (pifIdInt === 0 || pifIdInt < -1) return null;
   else if (pifIdInt <= 251) return pifIdInt; // 初代和二代宝可梦Id相同
   else if (pifIdToPokeIdMap[pifId]) return pifIdToPokeIdMap[pifId];
-  else return null;
+  return null;
 }
 
 export function getPokeNameByPifId(pifId: PifId): string {
@@ -177,7 +183,7 @@ export function getVariantName(variant: string): string {
 
 export function getValidVariant(head: PifId, body: PifId, variant?: string): string {
   const variants = PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]].split(",");
-  if (variants.indexOf(variant) === -1) variant = variants[Random.int(0, variants.length)];
+  if (variants.indexOf(variant) === -1) return variants[Random.int(0, variants.length)];
 
   return variant;
 }
@@ -186,11 +192,12 @@ export function getPifUrlAll(head: PifId, body: PifId): string {
   return `https://gitlab.com/pokemoninfinitefusion/autogen-fusion-sprites/-/raw/master/Battlers/${head}/${head}.${body}.png?ref_type=heads`;
 }
 
-export function getPifUrl(head: PifId, body?: PifId, variant?: string): string {
+export function getPifUrl(head: PifId, body?: PifId, _variant?: string): string {
+  let variant = _variant;
   if (variant === undefined) variant = "";
   variant = variant.trim();
   if (body === undefined) return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}${variant}.png?ref_type=heads`;
-  else return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}.${body}${variant}.png?ref_type=heads`;
+  return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}.${body}${variant}.png?ref_type=heads`;
 }
 
 export function shuffle(arr: any[]): any[] {

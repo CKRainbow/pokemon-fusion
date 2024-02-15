@@ -17,7 +17,7 @@ export function getFusionVariants(head: PifId, body: PifId): Array<string> {
 export function tryParseIntoPifId(parsee: string | undefined): PifId | undefined | null {
   if (parsee === undefined || parsee === "0") return undefined;
 
-  if (!isNaN(Number(parsee))) {
+  if (!Number.isNaN(Number(parsee))) {
     return tryGetPifIdFromPokeId(parseInt(parsee));
   } else if (typeof parsee === "string") {
     const pifId = tryGetPifIdFromName(parsee);
@@ -113,7 +113,7 @@ export function randFuseByHead(head: PifId): Array<PifId> {
 }
 
 export function randFuseAll(): PifId {
-  return MatrixIdToPifId[Random.int(0, Object.keys(PifIdToMatrixId).length)];
+  return Random.pick(Object.keys(PifIdToMatrixId));
 }
 
 export function randFuseByBody(body: PifId): Array<PifId> {
@@ -147,7 +147,7 @@ function tryGetPifIdFromPokeId(pokeId: PokeId): PifId | null {
   else if (pokeIdToPifIdMap[pokeId]) {
     const pifIds = pokeIdToPifIdMap[pokeId];
     if (Array.isArray(pifIds)) {
-      return pifIds[Random.int(pifIds.length)];
+      return Random.pick(pifIds);
     }
     return pifIds;
   }
@@ -183,7 +183,7 @@ export function getVariantName(variant: string): string {
 
 export function getValidVariant(head: PifId, body: PifId, variant?: string): string {
   const variants = PifValidMatrix[PifIdToMatrixId[head]][PifIdToMatrixId[body]].split(",");
-  if (variants.indexOf(variant) === -1) return variants[Random.int(0, variants.length)];
+  if (variants.indexOf(variant) === -1) return Random.pick(variants);
 
   return variant;
 }
@@ -192,18 +192,23 @@ export function getPifUrlAll(head: PifId, body: PifId): string {
   return `https://gitlab.com/pokemoninfinitefusion/autogen-fusion-sprites/-/raw/master/Battlers/${head}/${head}.${body}.png?ref_type=heads`;
 }
 
-export function getPifUrl(head: PifId, body?: PifId, _variant?: string): string {
+export function getPifUrl(head: PifId, body: PifId, _variant?: string): string {
   let variant = _variant;
   if (variant === undefined) variant = "";
   variant = variant.trim();
-  if (body === undefined) return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}${variant}.png?ref_type=heads`;
   return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${head}.${body}${variant}.png?ref_type=heads`;
 }
 
-export function shuffle(arr: any[]): any[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+export function getPifUrlTri(first: PifId, second: PifId, third: PifId, _variant?: string): string {
+  let variant = _variant;
+  if (variant === undefined) variant = "";
+  variant = variant.trim();
+  return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/Other/Triples/${first}.${second}.${third}${variant}.png?ref_type=heads`;
+}
+
+export function getPifUrlBase(base: PifId, _variant?: string): string {
+  let variant = _variant;
+  if (variant === undefined) variant = "";
+  variant = variant.trim();
+  return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/Other/BaseSprites/${base}${variant}.png?ref_type=heads`;
 }

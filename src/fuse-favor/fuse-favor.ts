@@ -1,15 +1,5 @@
 import { Context, Random, h } from "koishi";
-import {
-  AtRegex,
-  getFusionVariants,
-  getPifUrl,
-  getPifUrlAll,
-  getPokeNameByPifId,
-  shuffle,
-  tryParseFuseMessage,
-  tryParseFuseMessageByLink,
-  tryParseIntoPifId,
-} from "../utils";
+import { AtRegex, getFusionVariants, getPifUrl, getPifUrlAll, getPokeNameByPifId, tryParseFuseMessage, tryParseIntoPifId } from "../utils";
 import { PifId } from "../consts";
 import { displayFavorEntry, getAidAsync } from "./utils";
 
@@ -125,7 +115,6 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         user: aid,
       });
 
-      // FIXME: uname为空？
       return `原来${uname}喜欢${displayFavorEntry(headId, bodyId, variant)}！`;
     })
     .alias("喜欢")
@@ -211,7 +200,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       return `${uname}还没有喜欢的融合哦。`;
     }
 
-    const shuffledList = shuffle(list);
+    const shuffledList = Random.shuffle(list);
 
     const rand = Random.int(0, 10);
 

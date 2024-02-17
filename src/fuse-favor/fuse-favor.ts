@@ -1,7 +1,17 @@
 import { Context, Random, h } from "koishi";
-import { AtRegex, getFusionVariants, getPifUrl, getPifUrlAll, getPokeNameByPifId, tryParseFuseMessage, tryParseIntoPifId } from "../utils";
+import {
+  displayFuseEntry,
+  AtRegex,
+  getFusionVariants,
+  getPifUrl,
+  getPokeNameByPifId,
+  tryParseFuseMessage,
+  tryParseIntoPifId,
+  getVariantsList,
+  FuseEntry,
+} from "../utils";
 import { PifId } from "../consts";
-import { displayFavorEntry, getAidAsync } from "./utils";
+import { getAidAsync } from "./utils";
 
 declare module "koishi" {
   interface Tables {
@@ -11,8 +21,9 @@ declare module "koishi" {
 
 interface FuseFavor {
   id: number;
-  head: PifId;
-  body: PifId;
+  firstId: PifId;
+  secondId: PifId;
+  thirdId: PifId;
   variant: string;
   user: number;
 }
@@ -23,12 +34,24 @@ export const name = "fuse-favor";
 export const inject = ["database"];
 
 export function apply(ctx: Context, config: FuseFavorConfig) {
+  // FIXME: 仍无法直接迁移
   ctx.model.extend(
     "fuseFavor",
     {
       id: "unsigned",
-      head: "string",
-      body: "string",
+      firstId: {
+        type: "string",
+        legacy: ["head"],
+      },
+      secondId: {
+        type: "string",
+        legacy: ["body"],
+        nullable: true,
+      },
+      thirdId: {
+        type: "string",
+        nullable: true,
+      },
       variant: "string",
       user: "unsigned",
     },
@@ -41,31 +64,34 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
   );
 
   ctx
-    .command("likef [head] [body]", "将该融合加入喜欢列表")
+    .command("likef [first] [second] [third]", "将该融合加入喜欢列表")
     .option("variant", "-v [variant] 指定变体，仅在非引用回复时有效", { type: /^[a-z]*$/ })
-    .action(async (argv, head, body) => {
+    .action(async (argv, first, second, third) => {
       if (argv.args.length < 1) return;
 
       const session = argv.session;
       let autogen = false;
-      let [headId, bodyId, variant] = [undefined, undefined, undefined];
+      let [firstId, secondId, thirdId, variant] = [undefined, undefined, undefined, undefined];
 
       if (argv.source.includes("autogen")) autogen = true;
 
-      if (head === undefined || body === undefined) {
+      if (first === undefined || second === undefined || third === undefined) {
         const result = tryParseFuseMessage(argv.source);
         if (result === null) {
           return "你都喜欢了些什么啊！";
         }
-        [headId, bodyId, variant] = result;
+        [firstId, secondId, thirdId, variant] = result;
       } else {
-        headId = tryParseIntoPifId(head);
-        bodyId = tryParseIntoPifId(body);
+        firstId = tryParseIntoPifId(first);
+        secondId = tryParseIntoPifId(second);
+        thirdId = tryParseIntoPifId(third);
 
-        if (headId === null) {
-          return "尚不支持该头部宝可梦";
-        } else if (bodyId === null) {
-          return "尚不支持该身体宝可梦";
+        if (firstId === null) {
+          return "尚不支持宝可梦: " + first;
+        } else if (secondId === null) {
+          return "尚不支持宝可梦: " + second;
+        } else if (thirdId === null) {
+          return "尚不支持宝可梦: " + third;
         }
       }
 
@@ -73,7 +99,18 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
 
       if (autogen) variant = "autogen";
       else if (variant === null) variant = argv.options.variant;
-      const variants = getFusionVariants(headId, bodyId);
+      let variants;
+      if (secondId === undefined) {
+        // base sprite
+        variants = getVariantsList(firstId);
+      } else if (thirdId === undefined) {
+        // bi-fusion
+        variants = getVariantsList(firstId, secondId);
+      } else {
+        // tri-fusion
+        variants = getVariantsList(firstId, secondId, thirdId);
+      }
+
       if (variant === undefined && variants.length > 1) {
         await session.send(`从该融合的以下变体中选一个吧: \n${variants.join(",").replace(" ", "基础")}`);
         const result = await session.prompt(
@@ -98,9 +135,10 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       const aid = await getAidAsync(ctx, uid);
 
       const id = await ctx.database.get("fuseFavor", {
-        head: headId,
-        body: bodyId,
-        variant: variant,
+        firstId,
+        secondId,
+        thirdId,
+        variant,
         user: aid,
       });
 
@@ -109,32 +147,36 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       }
 
       await ctx.database.create("fuseFavor", {
-        head: headId,
-        body: bodyId,
-        variant: variant,
+        firstId,
+        secondId,
+        thirdId,
+        variant,
         user: aid,
       });
 
-      return `原来${uname}喜欢${displayFavorEntry(headId, bodyId, variant)}！`;
+      return `原来${uname}喜欢${displayFuseEntry({ firstId, secondId, variant })}！`;
     })
     .alias("喜欢")
     .alias("喜欢这个");
 
   ctx
-    .command("unlikef <head> <body>", "将该融合从喜欢列表中删除")
+    .command("unlikef [first] [second] [third]", "将该融合从喜欢列表中删除")
     .option("variant", "-v [variant] 指定变体，仅在非引用回复时有效", { type: /^[a-z]*$/ })
-    .action(async (argv, head, body) => {
+    .action(async (argv, first, second, third) => {
       if (argv.args.length < 1) return;
 
       const session = argv.session;
 
-      const headId = tryParseIntoPifId(head);
-      const bodyId = tryParseIntoPifId(body);
+      const firstId = tryParseIntoPifId(first);
+      const secondId = tryParseIntoPifId(second);
+      const thirdId = tryParseIntoPifId(third);
 
-      if (headId === null) {
-        return "尚不支持该头部宝可梦";
-      } else if (bodyId === null) {
-        return "尚不支持该身体宝可梦";
+      if (firstId === null) {
+        return "尚不支持宝可梦: " + first;
+      } else if (secondId === null) {
+        return "尚不支持宝可梦: " + second;
+      } else if (thirdId === null) {
+        return "尚不支持宝可梦: " + third;
       }
 
       let variant = argv.options.variant;
@@ -144,8 +186,10 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       const aid = await getAidAsync(ctx, uid);
 
       const variants = await ctx.database.get("fuseFavor", {
-        head: headId,
-        body: bodyId,
+        firstId,
+        secondId,
+        thirdId,
+        variant,
         user: aid,
       });
 
@@ -173,7 +217,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         await ctx.database.remove("fuseFavor", [target[0].id]);
       }
 
-      return `${uname}已经不喜欢${displayFavorEntry(headId, bodyId, variant)}了吗？`;
+      return `${uname}已经不喜欢${displayFuseEntry({ firstId: firstId, secondId: secondId, variant })}了吗？`;
     });
 
   ctx.command("showff", "显示喜欢列表").action(async (argv) => {
@@ -207,15 +251,16 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
     if (rand >= 2) {
       let response = `${uname}喜欢这些融合: \n${shuffledList
         .slice(0, 10)
-        .map((v) => displayFavorEntry(v.head, v.body, v.variant))
+        .map((v) => displayFuseEntry({ firstId: v.firstId, secondId: v.secondId, thirdId: v.thirdId, variant: v.variant }))
         .join(",\n")}`;
       if (list.length > 10) response += `\n(……总共${shuffledList.length}种)`;
       return response;
     } else if (rand < 2) {
       const favorDict: { [key: string]: number } = {};
       shuffledList.forEach((entry) => {
-        favorDict[entry.head] = (favorDict[entry.head] ?? 0) + 1;
-        favorDict[entry.body] = (favorDict[entry.body] ?? 0) + 1;
+        favorDict[entry.firstId] = (favorDict[entry.firstId] ?? 0) + 1;
+        if (entry.secondId !== undefined && entry.secondId !== null) favorDict[entry.secondId] = (favorDict[entry.secondId] ?? 0) + 1;
+        if (entry.thirdId !== undefined && entry.thirdId !== null) favorDict[entry.thirdId] = (favorDict[entry.thirdId] ?? 0) + 1;
       });
       let favorate = "";
       let max = 0;
@@ -258,13 +303,15 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
 
     if (target.variant === "vanilla") target.variant = "";
 
-    let url = null;
-    if (target.variant === "autogen") {
-      url = getPifUrlAll(target.head, target.body);
-    } else {
-      url = getPifUrl(target.head, target.body, target.variant);
-    }
+    const entry: FuseEntry = {
+      firstId: target.firstId,
+      secondId: target.secondId,
+      thirdId: target.thirdId,
+      variant: target.variant,
+    };
 
-    return `${uname}很喜欢${displayFavorEntry(target.head, target.body, target.variant)}！\n${h("img", { src: url })}`;
+    const url = getPifUrl(entry);
+
+    return `${uname}很喜欢${displayFuseEntry({ firstId: target.firstId, secondId: target.secondId, variant: target.variant })}！\n${h("img", { src: url })}`;
   });
 }

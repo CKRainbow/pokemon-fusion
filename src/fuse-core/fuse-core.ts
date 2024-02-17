@@ -1,10 +1,6 @@
 import { Context, Random, h } from "koishi";
 import {
   getPifUrl,
-  getPifUrlAll,
-  getPifUrlBase,
-  getPifUrlTri,
-  getPokeNameByPifId,
   getValidVariant,
   getVariantName,
   randFuse,
@@ -14,8 +10,10 @@ import {
   tryGetPokeIdFromName,
   tryParseIntoPifId,
   validCustomFusion,
+  displayFuseEntry,
+  getVariantsList,
 } from "../utils";
-import { BaseValidList, MatrixIdToPifId, PifIdToMatrixId, TriValidList } from "../valid_matrix";
+import { BaseValidList, MatrixIdToPifId } from "../valid_matrix";
 
 export interface FuseCoreConfig {}
 
@@ -55,26 +53,20 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
       let infoMessage = "";
       if (variant === "") variant = " ";
 
-      let url = "";
       if (validCustomFusion(headId, bodyId)) {
-        const validVariant = getValidVariant(headId, bodyId, variant);
+        const validVariant = getValidVariant({ firstId: headId, secondId: bodyId, variant });
         if (variant !== validVariant && variant !== undefined) {
-          infoMessage += `该融合并没有变体${getVariantName(variant)}，故随机选择了变体: ${getVariantName(validVariant)}\n`;
+          infoMessage += `该融合并没有变体${getVariantName(variant)}。\n`;
           variant = validVariant;
-        } else {
-          variant = validVariant;
-          infoMessage += `选择了变体: ${getVariantName(validVariant)}\n`;
         }
-
-        url = getPifUrl(headId, bodyId, variant);
       } else if (options.all) {
-        url = getPifUrlAll(headId, bodyId);
-        infoMessage += "选择了变体: 自动生成\n";
+        variant = "autogen";
       } else {
         return "暂时还没有这种融合呢。";
       }
+      const url = getPifUrl({ firstId: headId, secondId: bodyId, variant });
 
-      return `要融合的宝可梦原来是${getPokeNameByPifId(headId)}和${getPokeNameByPifId(bodyId)}！\n${infoMessage}${h("img", { src: url })}`;
+      return `要融合的宝可梦原来是${displayFuseEntry({ firstId: headId, secondId: bodyId, variant })}！\n${infoMessage}${h("img", { src: url })}`;
     })
     .alias("随机融合", { args: ["0", "0"] })
     .shortcut(/^锁头 (\S*)\s*$/, { args: ["$1", "0"] })
@@ -103,16 +95,15 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
 
           let url = "";
           if (TriValidList[key].includes(variant)) {
-            infoMessage += `选择了变体: ${getVariantName(variant)}\n`;
             url = getPifUrlTri(firstId, secondId, thirdId, variant);
           } else {
             const validVariants = TriValidList[key].split(",");
             const validVariant = Random.pick(validVariants);
-            infoMessage += `该融合并没有变体${getVariantName(variant)}，故随机选择了变体: ${getVariantName(validVariant)}\n`;
+            infoMessage += `该融合并没有变体${getVariantName(variant)}。\n`;
             url = getPifUrlTri(firstId, secondId, thirdId, validVariant);
           }
 
-          return `要融合的宝可梦原来是${getPokeNameByPifId(firstId)}、${getPokeNameByPifId(secondId)}和${getPokeNameByPifId(thirdId)}！\n${infoMessage}${h(
+          return `要融合的宝可梦原来是${displayFuseEntry(firstId, secondId, thirdId, variant)}！\n${infoMessage}${h(
             "img",
             { src: url }
           )}`;
@@ -125,10 +116,10 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
         const [firstId, secondId, thirdId] = validKey.split(".");
         const validVariants = TriValidList[validKey].split(",");
         const validVariant = Random.pick(validVariants);
-        const infoMessage = `选择了变体: ${getVariantName(validVariant)}\n`;
+        const infoMessage = "";
         const url = getPifUrlTri(firstId, secondId, thirdId, validVariant);
 
-        return `要融合的宝可梦原来是${getPokeNameByPifId(firstId)}、${getPokeNameByPifId(secondId)}和${getPokeNameByPifId(thirdId)}！\n${infoMessage}${h(
+        return `要融合的宝可梦原来是${displayFuseEntry(firstId, secondId, thirdId, variant)}！\n${infoMessage}${h(
           "img",
           { src: url }
         )}`;
@@ -147,28 +138,24 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
 
         if (baseId === null) return "尚不支持该宝可梦";
 
-        const variants = BaseValidList[PifIdToMatrixId[baseId]];
+        const variants = getVariantsList(baseId);
 
         if (variants.length > 0) {
           let variant = argv.options.variant;
           let infoMessage = "";
           if (variant === "") variant = " ";
 
-          if (variants.includes(variant)) {
-            infoMessage += `选择了变体: ${getVariantName(variant)}\n`;
-          } else {
+          if (!variants.includes(variant)) {
             const validVariants = variants.split(",");
             const originalVariant = variant;
             variant = Random.pick(validVariants);
             if (originalVariant !== undefined) {
-              infoMessage += `这个宝可梦并没有变体${getVariantName(originalVariant)}，故随机选择了变体: ${getVariantName(variant)}\n`;
-            } else {
-              infoMessage += `选择了变体: ${getVariantName(variant)}\n`;
+              infoMessage += `这个宝可梦并没有变体${getVariantName(originalVariant)}。\n`;
             }
           }
-          const url = getPifUrlBase(baseId, variant);
+          const url = getPifUrl({ firstId: baseId, variant });
 
-          return `是原汁原味的${getPokeNameByPifId(baseId)}！\n${infoMessage}${h("img", { src: url })}`;
+          return `是原汁原味的${displayFuseEntry({ firstId: baseId, variant })}！\n${infoMessage}${h("img", { src: url })}`;
         } else {
           return "怎么回事呢，还没有这个宝可梦的图像呢。";
         }
@@ -180,20 +167,16 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
         const validVariants = BaseValidList[validMatrixId].split(",");
         let infoMessage = "";
         let variant = argv.options.variant;
-        if (validVariants.includes(variant)) {
-          infoMessage += `选择了变体: ${getVariantName(variant)}\n`;
-        } else {
+        if (!validVariants.includes(variant)) {
           const originalVariant = variant;
           variant = Random.pick(validVariants);
           if (originalVariant !== undefined) {
-            infoMessage += `这个宝可梦并没有变体${getVariantName(originalVariant)}，故随机选择了变体: ${getVariantName(variant)}\n`;
-          } else {
-            infoMessage += `选择了变体: ${getVariantName(variant)}\n`;
+            infoMessage += `这个宝可梦并没有变体${getVariantName(originalVariant)}。\n`;
           }
         }
-        const url = getPifUrlBase(validId, variant);
+        const url = getPifUrl({ firstId: validId, variant });
 
-        return `是原汁原味的${getPokeNameByPifId(validId)}！\n${infoMessage}${h("img", { src: url })}`;
+        return `是原汁原味的${displayFuseEntry({ firstId: validId, variant })}！\n${infoMessage}${h("img", { src: url })}`;
       }
     });
 

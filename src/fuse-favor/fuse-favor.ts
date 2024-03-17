@@ -11,7 +11,7 @@ import {
   FuseEntry,
 } from "../utils";
 import { PifId } from "../consts";
-import { getAidAsync } from "./utils";
+import { getAidAsync, showFavorList } from "./utils";
 
 declare module "koishi" {
   interface Tables {
@@ -19,13 +19,14 @@ declare module "koishi" {
   }
 }
 
-interface FuseFavor {
+export interface FuseFavor {
   id: number;
   firstId: PifId;
   secondId: PifId;
   thirdId: PifId;
   variant: string;
   user: number;
+  nickname: string;
 }
 
 export interface FuseFavorConfig {}
@@ -54,9 +55,14 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       },
       variant: "string",
       user: "unsigned",
+      nickname: {
+        type: "string",
+        nullable: true,
+      },
     },
     {
       autoInc: true,
+      unique: ["nickname"],
       foreign: {
         user: ["user", "id"],
       },
@@ -78,7 +84,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       if (first === undefined || second === undefined || third === undefined) {
         const result = tryParseFuseMessage(argv.source);
         if (result === null) {
-          return "你都喜欢了些什么啊！";
+          return;
         }
         [firstId, secondId, thirdId, variant] = result;
       } else {
@@ -119,7 +125,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
           },
           { timeout: 10000 }
         );
-        if (result === undefined) return "看来你还没有决定好呢。";
+        if (result === undefined) return "Time Limit Error!";
         variant = result;
       }
       variant = variant === "" || variant === "基础" ? " " : variant;
@@ -154,7 +160,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         user: aid,
       });
 
-      return `原来${uname}喜欢${displayFuseEntry({ firstId, secondId, variant })}！`;
+      return `原来${uname}喜欢${displayFuseEntry({ firstId, secondId, thirdId, variant })}！`;
     })
     .alias("喜欢")
     .alias("喜欢这个");
@@ -197,13 +203,8 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         variant = variants[0].variant;
       } else if (variant === undefined) {
         await session.send(`从该融合的以下变体中选一个吧: \n${variants.join(",").replace(" ", "基础")}`);
-        const result = await session.prompt(
-          async (session) => {
-            return session.event.message.elements[0].attrs.content;
-          },
-          { timeout: 6000 }
-        );
-        if (result === undefined) return "看来你还没有决定好呢。";
+        const result = await session.prompt(10000);
+        if (result === undefined) return "Time Limie Error!";
 
         const target = variants.filter((v) => v.variant === result);
         if (target.length === 0) return `好像并没有喜欢${result}这个变体呢。`;
@@ -217,11 +218,12 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         await ctx.database.remove("fuseFavor", [target[0].id]);
       }
 
-      return `${uname}已经不喜欢${displayFuseEntry({ firstId: firstId, secondId: secondId, variant })}了吗？`;
+      return `${uname}已经不喜欢${displayFuseEntry({ firstId, secondId, thirdId, variant })}了吗？`;
     });
 
   ctx.command("showff", "显示喜欢列表").action(async (argv) => {
     const match = argv.source.match(AtRegex);
+    const session = argv.session;
 
     let uid = "";
     let uname = "";
@@ -249,12 +251,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
     const rand = Random.int(0, 10);
 
     if (rand >= 2) {
-      let response = `${uname}喜欢这些融合: \n${shuffledList
-        .slice(0, 10)
-        .map((v) => displayFuseEntry({ firstId: v.firstId, secondId: v.secondId, thirdId: v.thirdId, variant: v.variant }))
-        .join(",\n")}`;
-      if (list.length > 10) response += `\n(……总共${shuffledList.length}种)`;
-      return response;
+      return await showFavorList(ctx, shuffledList, session);
     } else if (rand < 2) {
       const favorDict: { [key: string]: number } = {};
       shuffledList.forEach((entry) => {
@@ -312,6 +309,28 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
 
     const url = getPifUrl(entry);
 
-    return `${uname}很喜欢${displayFuseEntry({ firstId: target.firstId, secondId: target.secondId, variant: target.variant })}！\n${h("img", { src: url })}`;
+    return `${uname}很喜欢${displayFuseEntry(entry)}！\n${h("img", { src: url })}`;
+  });
+
+  ctx.command("nick <nickname>", "通过昵称显示融合图像").action(async (_, nickname) => {
+    const picks = await ctx.database.get("fuseFavor", { nickname });
+
+    if (picks.length === 0) {
+      return "还没有这个昵称呢。";
+    }
+
+    const entry: FuseEntry = {
+      firstId: picks[0].firstId,
+      secondId: picks[0].secondId,
+      thirdId: picks[0].thirdId,
+      variant: picks[0].variant,
+    };
+
+    const url = getPifUrl(entry);
+    if (entry.secondId === null) {
+      return `正是原汁原味的${displayFuseEntry(entry, nickname)}！\n${h("img", { src: url })}`;
+    } else {
+      return `正是${displayFuseEntry(entry, nickname)}！\n${h("img", { src: url })}`;
+    }
   });
 }

@@ -19,7 +19,7 @@
     "pokemon"
   ],
   "peerDependencies": {
-    "koishi": "^4.16.8"
+    "koishi": "^4.17.2"
   },
   "repository": {
     "type": "git",
@@ -34,7 +34,9 @@
       "zh": "目前可以指定或随机显示 Pokemon Infinite Fusion中的融合宝可梦的图像。"
     },
     "services": {
-      "required": ["database"]
+      "required": [
+        "database"
+      ]
     }
   }
 }

@@ -1,4 +1,4 @@
-import { Random } from "koishi";
+import { Context, Random } from "koishi";
 import { ZhName, EnName, pokeIdToPifIdMap, pifIdToPokeIdMap, PifId, PokeId, ZhNameToPokeId, EnNameToPokeId, PifIdToSpecialName, SpecialName } from "./consts";
 import { PifValidMatrix, PifIdToMatrixId, MatrixIdToPifId, BaseValidList, TriValidList } from "./valid_matrix";
 
@@ -123,7 +123,10 @@ export function getPokeNameByPifId(pifId: PifId): string {
   if (PifIdToSpecialName[pifId]) return PifIdToSpecialName[pifId];
 
   const pokeId = tryGetPokeIdFromPifId(pifId);
-  if (pokeId === null) return "Error";
+  if (pokeId === null) {
+    console.error(`无法获取Pid:${pifId}对应的名称`);
+    return "Error";
+  }
 
   return getPokeNameByPokeId(pokeId);
 }
@@ -151,19 +154,37 @@ export function getValidVariant({ firstId, secondId, thirdId, variant }: FuseEnt
   return variant;
 }
 
-export function displayFuseEntry({ firstId, secondId, thirdId, variant }: FuseEntry): string {
+export function displayFuseEntry({ firstId, secondId, thirdId, variant }: FuseEntry, nickname?: string): string {
   const variantName = getVariantName(variant);
 
+  var result = "";
+
   const firstName = getPokeNameByPifId(firstId);
-  if (secondId === undefined || secondId === null) return `[${firstName}](${variantName}变体)`;
-  const secondName = getPokeNameByPifId(secondId);
-  if (thirdId === undefined || thirdId === null) return `[${firstName}-${secondName}](${variantName}变体)`;
-  const thirdName = getPokeNameByPifId(thirdId);
-  return `[${firstName}-${secondName}-${thirdName}](${variantName}变体)`;
+  if (secondId === undefined || secondId === null) {
+    result = `[${firstName}]`;
+  } else {
+    const secondName = getPokeNameByPifId(secondId);
+    if (thirdId === undefined || thirdId === null) {
+      result = `[${firstName}-${secondName}]`;
+    } else {
+      const thirdName = getPokeNameByPifId(thirdId);
+      result = `[${firstName}-${secondName}-${thirdName}]`;
+    }
+  }
+
+  if (variantName !== undefined) {
+    result += `(${variantName}变体)`;
+  }
+
+  if (nickname !== null && nickname !== undefined) {
+    result += ` *${nickname}*`;
+  }
+
+  return result;
 }
 
 export function getPifUrl({ firstId, secondId, thirdId, variant }: FuseEntry): string {
-  if (variant === undefined) variant = "";
+  if (variant === undefined || variant === "vanilla") variant = "";
   variant = variant.trim();
   if (variant === "autogen")
     return `https://gitlab.com/pokemoninfinitefusion/autogen-fusion-sprites/-/raw/master/Battlers/${firstId}/${firstId}.${secondId}.png?ref_type=heads`;

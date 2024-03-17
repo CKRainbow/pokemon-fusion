@@ -24,6 +24,7 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
     .command("fuse [head] [body]", "获得某两个宝可梦的融合")
     .option("all", "-a 无视人工图要求")
     .option("variant", "-v [variant] 指定变体", { type: /^[a-z]*$/ })
+    .option("list", "-l 列出该融合的所有变体")
     .action((argv, head, body) => {
       const options = argv.options;
 
@@ -49,6 +50,10 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
         [headId, bodyId] = randFuseByBody(bodyId);
       }
 
+      if (options.list) {
+        return `${displayFuseEntry({ firstId: headId, secondId: bodyId })}拥有这些变体:\n${getVariantsList(headId, bodyId).replace(" ", "基础")}`;
+      }
+
       let variant = argv.options.variant;
       let infoMessage = "";
       if (variant === "") variant = " ";
@@ -57,8 +62,8 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
         const validVariant = getValidVariant({ firstId: headId, secondId: bodyId, variant });
         if (variant !== validVariant && variant !== undefined) {
           infoMessage += `该融合并没有变体${getVariantName(variant)}。\n`;
-          variant = validVariant;
         }
+        variant = validVariant;
       } else if (options.all) {
         variant = "autogen";
       } else {
@@ -129,8 +134,8 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
 */
   ctx
     .command("base [base]", "显示某只宝可梦的基本图像")
-    .option("nickname", "-n <nickname> 指定该昵称的宝可梦")
     .option("variant", "-v [variant] 指定变体")
+    .option("list", "-l 列出该融合的所有变体")
     .action((argv, base) => {
       const option = argv.options;
       if (base !== undefined) {
@@ -139,6 +144,10 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
         if (baseId === null) return "尚不支持该宝可梦";
 
         const variants = getVariantsList(baseId);
+
+        if (option.list) {
+          return `${displayFuseEntry({ firstId: baseId })}拥有这些变体:\n${variants.replace(" ", "基础")}`;
+        }
 
         if (variants.length > 0) {
           let variant = argv.options.variant;
@@ -159,8 +168,6 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
         } else {
           return "怎么回事呢，还没有这个宝可梦的图像呢。";
         }
-      } else if (option.nickname !== undefined) {
-        const nickname = option.nickname;
       } else {
         const validMatrixId = Random.int(BaseValidList.length);
         const validId = MatrixIdToPifId[validMatrixId];
@@ -168,11 +175,8 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
         let infoMessage = "";
         let variant = argv.options.variant;
         if (!validVariants.includes(variant)) {
-          const originalVariant = variant;
+          if (variant !== undefined) infoMessage += `这个宝可梦并没有变体${getVariantName(variant)}。\n`;
           variant = Random.pick(validVariants);
-          if (originalVariant !== undefined) {
-            infoMessage += `这个宝可梦并没有变体${getVariantName(originalVariant)}。\n`;
-          }
         }
         const url = getPifUrl({ firstId: validId, variant });
 

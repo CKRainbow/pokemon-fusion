@@ -16,10 +16,12 @@ export async function showFavorList(ctx: Context, favorList: Pick<FuseFavor, Key
     let response = `${uname}喜欢这些融合： \n${favorList
       .slice(page * 10, (page + 1) * 10)
       .map((v, idx) => `[${idx}] ${displayFuseEntry({ firstId: v.firstId, secondId: v.secondId, thirdId: v.thirdId, variant: v.variant }, v.nickname)}\n`)
-      .join("")}${page > 0 ? "[p]上一页" : ""}第[${page + 1}/${totalPages}]页 ${page < totalPages - 1 ? "[n]下一页" : ""}`;
+      .join("")}${page > 0 ? "[p]上一页" : ""}第[${page + 1}/${totalPages}]页 ${page < totalPages - 1 ? "[n]下一页" : ""}\n[-1] 算了`;
     await session.send(response);
-    let result = await session.prompt(4000);
-    if (result === "p" && page > 0) {
+    let result = await session.prompt(100000);
+    if (result === "-1" || result === "算了") {
+      return;
+    } else if (result === "p" && page > 0) {
       page--;
     } else if (result === "n" && page < totalPages - 1) {
       page++;

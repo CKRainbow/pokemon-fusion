@@ -28,13 +28,19 @@ export async function showFavorList(ctx: Context, favorList: Pick<FuseFavor, Key
       if (idx >= favorList.length) {
         return "Segmentation Fault!";
       }
+
+      const aid = await getAidAsync(ctx, session.event.user.id);
+      if (favorList[idx].user !== aid) {
+        return `Wrong Authentication!`;
+      }
+
       let favorEntry: FuseEntry = {
         firstId: favorList[idx].firstId,
         secondId: favorList[idx].secondId,
         thirdId: favorList[idx].thirdId,
         variant: favorList[idx].variant,
       };
-      return await favorEntryAction(ctx, favorEntry, favorList[idx].id, session);
+      return await favorEntryAction(ctx, favorEntry, favorList[idx], session);
     } else if (result === undefined) {
       return;
     } else {
@@ -43,7 +49,7 @@ export async function showFavorList(ctx: Context, favorList: Pick<FuseFavor, Key
   }
 }
 
-async function favorEntryAction(ctx: Context, favorEntry: FuseEntry, databaseId: number, session: Session) {
+async function favorEntryAction(ctx: Context, favorEntry: FuseEntry, databaseEntry: Pick<FuseFavor, Keys<FuseFavor, any>>, session: Session) {
   const uname = session.username;
   const url = getPifUrl(favorEntry);
   const response = `对于${displayFuseEntry(favorEntry)}，${uname}有什么想法吗？
@@ -65,10 +71,10 @@ ${h("img", { src: url })}
     if (sameNickname.length > 0) {
       return "该昵称已经被使用了！";
     }
-    await ctx.database.set("fuseFavor", databaseId, { nickname: nickname });
+    await ctx.database.set("fuseFavor", databaseEntry.id, { nickname: nickname });
     return `之后可以用"${nickname}"称呼了！`;
   } else if (result === "2") {
-    await ctx.database.remove("fuseFavor", [databaseId]);
+    await ctx.database.remove("fuseFavor", [databaseEntry.id]);
     return `${uname}已经不喜欢${displayFuseEntry(favorEntry)}了吗？`;
   } else if (result === "3") {
     return;

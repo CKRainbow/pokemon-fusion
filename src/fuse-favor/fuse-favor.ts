@@ -71,17 +71,16 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
 
   ctx
     .command("likef [first] [second] [third]", "将该融合加入喜欢列表")
+    .option("quote", "-q 通过引用抓取融合")
     .option("variant", "-v [variant] 指定变体，仅在非引用回复时有效", { type: /^[a-z]*$/ })
     .action(async (argv, first, second, third) => {
-      if (argv.args.length < 1) return;
-
       const session = argv.session;
       let autogen = false;
       let [firstId, secondId, thirdId, variant] = [undefined, undefined, undefined, undefined];
 
       if (argv.source.includes("autogen")) autogen = true;
 
-      if (first === undefined || second === undefined || third === undefined) {
+      if (argv.options.quote) {
         const result = tryParseFuseMessage(argv.source);
         if (result === null) {
           return;
@@ -118,7 +117,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       }
 
       if (variant === undefined && variants.length > 1) {
-        await session.send(`从该融合的以下变体中选一个吧: \n${variants.join(",").replace(" ", "基础")}`);
+        await session.send(`从该融合的以下变体中选一个吧: \n${variants.replace(" ", "基础")}`);
         const result = await session.prompt(
           async (session) => {
             return session.event.message.elements[0].attrs.content;
@@ -162,8 +161,8 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
 
       return `原来${uname}喜欢${displayFuseEntry({ firstId, secondId, thirdId, variant })}！`;
     })
-    .alias("喜欢")
-    .alias("喜欢这个");
+    .alias("喜欢", {options: { quote: true}})
+    .alias("喜欢这个", {options: { quote: true}});
 
   ctx
     .command("unlikef [first] [second] [third]", "将该融合从喜欢列表中删除")

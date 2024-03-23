@@ -46,41 +46,27 @@ export function tryParseFuseMessage(message: string): [PifId, PifId | undefined,
 }
 
 // REFACTOR: 使其更加通用
-export function randFuse(): Array<PifId> {
-  const randHeadMatrixId = Random.int(0, Object.keys(PifIdToMatrixId).length);
-  const randHead = MatrixIdToPifId[randHeadMatrixId];
-  const headLock = PifValidMatrix[randHeadMatrixId];
-  const validSelection: Array<number> = [];
-  headLock.forEach((variants, index) => {
-    if (variants.length > 0) validSelection.push(index);
-  });
-  const randBody = MatrixIdToPifId[validSelection[Random.int(0, validSelection.length)]];
-
-  return [randHead, randBody];
-}
-
-export function randFuseByHead(head: PifId): Array<PifId> {
-  const headLock = PifValidMatrix[PifIdToMatrixId[head]];
-  const validSelection: Array<number> = [];
-  headLock.forEach((variants, index) => {
-    if (variants.length > 0) validSelection.push(index);
-  });
-  const randBody = MatrixIdToPifId[validSelection[Random.int(0, validSelection.length)]];
-  return [head, randBody];
+export function randFuse(headId?: PifId, bodyId?: PifId): Array<PifId> {
+  var headMatrixId = null;
+  if (headId === undefined) {
+    headMatrixId = Random.int(0, Object.keys(PifIdToMatrixId).length);
+    headId = MatrixIdToPifId[headMatrixId];
+  } else {
+    headMatrixId = PifIdToMatrixId[headId];
+  }
+  if (bodyId === undefined) {
+    const headLock = PifValidMatrix[headMatrixId];
+    const validSelection: Array<number> = [];
+    headLock.forEach((variants, index) => {
+      if (variants.length > 0) validSelection.push(index);
+    });
+    bodyId = MatrixIdToPifId[validSelection[Random.int(0, validSelection.length)]];
+  }
+  return [headId, bodyId];
 }
 
 export function randFuseAll(): PifId {
   return Random.pick(Object.keys(PifIdToMatrixId));
-}
-
-export function randFuseByBody(body: PifId): Array<PifId> {
-  const validSelection: Array<number> = [];
-  const bodyMatrixId = PifIdToMatrixId[body];
-  PifValidMatrix.forEach((bodysVariants, index) => {
-    if (bodysVariants[bodyMatrixId].length > 0) validSelection.push(index);
-  });
-  const randHead = MatrixIdToPifId[validSelection[Random.int(0, validSelection.length)]];
-  return [randHead, body];
 }
 
 export function tryGetPokeIdFromName(name: string): PokeId | null {
@@ -193,4 +179,53 @@ export function getPifUrl({ firstId, secondId, thirdId, variant }: FuseEntry): s
   if (thirdId === undefined || thirdId === null)
     return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/CustomBattlers/${firstId}.${secondId}${variant}.png?ref_type=heads`;
   return `http://gitlab.com/pokemoninfinitefusion/customsprites/-/raw/master/Other/Triples/${firstId}.${secondId}.${thirdId}${variant}.png?ref_type=heads`;
+}
+
+export async function isPermittedChangeNickname(ctx: Context, favorEntry: FuseEntry, aid: number): Promise<[boolean, number]> {
+  const check = await ctx.database.get("fuseNick", favorEntry, ["user"]);
+  if (check === null) return [true, -1];
+  if (check.filter((v) => v.user !== aid).length > 0) return [false, check[0].user];
+  return [true, -1];
+}
+
+export async function addNickname(ctx: Context, nickname: string, favorEntry: FuseEntry, aid: number, favorId?: number) {
+  const nickEntry = {
+    nickname: nickname,
+    user: aid,
+    ...favorEntry,
+  };
+  try {
+    await ctx.database.upsert("fuseNick", [nickEntry]);
+  } catch (e) {
+    console.log(e);
+    return "Duplicated Nickname!";
+  }
+
+  const affectedFavorEntries = await ctx.database.get("fuseFavor", favorEntry, ["id", "nick"]);
+  const affectedFavorQueries = affectedFavorEntries.map((v) => {
+    return {
+      id: v.id,
+      nick: nickname,
+    };
+  });
+  await ctx.database.upsert("fuseFavor", affectedFavorQueries);
+
+  return `现在可以用"${nickname}"称呼了！`;
+}
+
+export async function removeNickname(ctx: Context, favorEntry: FuseEntry, aid: number, favorId?: number) {
+  const result = await ctx.database.remove("fuseNick", favorEntry);
+
+  if (result.removed === 0) return "还没有昵称呢！";
+
+  const affectedFavorEntries = await ctx.database.get("fuseFavor", favorEntry, ["id", "nick"]);
+  const affectedFavorQueries = affectedFavorEntries.map((v) => {
+    return {
+      id: v.id,
+      nick: null,
+    };
+  });
+  await ctx.database.upsert("fuseFavor", affectedFavorQueries);
+
+  return `已经将昵称移除了！`;
 }

@@ -11,7 +11,7 @@ import {
   FuseEntry,
 } from "../utils";
 import { PifId } from "../consts";
-import { getAidAsync, showFavorList } from "./utils";
+import { addFavor, getAidAsync, showFavorList } from "./utils";
 
 declare module "koishi" {
   interface Tables {
@@ -25,8 +25,9 @@ export interface FuseFavor {
   secondId: PifId;
   thirdId: PifId;
   variant: string;
-  user: number;
   nickname: string;
+  nick: string;
+  user: number;
 }
 
 export interface FuseFavorConfig {}
@@ -53,19 +54,41 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         type: "string",
         nullable: true,
       },
-      variant: "string",
-      user: "unsigned",
-      nickname: {
+      nick: {
         type: "string",
         nullable: true,
       },
+      variant: "string",
+      user: "unsigned",
     },
     {
       autoInc: true,
-      unique: ["nickname"],
       foreign: {
         user: ["user", "id"],
+        nick: ["fuseNick", "nickname"],
       },
+    }
+  );
+
+  ctx.database.migrate(
+    "fuseFavor",
+    {
+      nickname: "string",
+    },
+    async (database) => {
+      const data = await database.get("fuseFavor", {}, ["firstId", "secondId", "thirdId", "variant", "nickname", "user"]);
+      await database.upsert("fuseNick", data);
+      data.forEach(async (entry) => {
+        const _entry: FuseEntry = {
+          firstId: entry.firstId,
+          secondId: entry.secondId,
+          thirdId: entry.thirdId,
+          variant: entry.variant,
+        };
+        const idPick = await ctx.database.get("fuseFavor", _entry, ["id"]);
+        const ids = idPick.map((id) => id.id);
+        await ctx.database.set("fuseFavor", ids, { nick: entry.nickname });
+      });
     }
   );
 
@@ -139,30 +162,10 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       const uname = session.username;
       const aid = await getAidAsync(ctx, uid);
 
-      const id = await ctx.database.get("fuseFavor", {
-        firstId,
-        secondId,
-        thirdId,
-        variant,
-        user: aid,
-      });
-
-      if (id.length > 0) {
-        return `${uname}已经在喜欢了！`;
-      }
-
-      await ctx.database.create("fuseFavor", {
-        firstId,
-        secondId,
-        thirdId,
-        variant,
-        user: aid,
-      });
-
-      return `原来${uname}喜欢${displayFuseEntry({ firstId, secondId, thirdId, variant })}！`;
+      return await addFavor(ctx, { firstId, secondId, thirdId, variant }, aid, uname);
     })
-    .alias("喜欢", {options: { quote: true}})
-    .alias("喜欢这个", {options: { quote: true}});
+    .alias("喜欢", { options: { quote: true } })
+    .alias("喜欢这个", { options: { quote: true } });
 
   ctx
     .command("unlikef [first] [second] [third]", "将该融合从喜欢列表中删除")
@@ -194,7 +197,6 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         firstId,
         secondId,
         thirdId,
-        variant,
         user: aid,
       });
 
@@ -209,7 +211,6 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
         if (target.length === 0) return `好像并没有喜欢${result}这个变体呢。`;
 
         await ctx.database.remove("fuseFavor", [target[0].id]);
-        await ctx.database.remove("fuseFavor", [variants[0].id]);
       } else {
         const target = variants.filter((v) => v.variant === variant);
         if (target.length === 0) return `好像并没有喜欢${variant}这个变体呢。`;
@@ -220,55 +221,58 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
       return `${uname}已经不喜欢${displayFuseEntry({ firstId, secondId, thirdId, variant })}了吗？`;
     });
 
-  ctx.command("showff", "显示喜欢列表").action(async (argv) => {
-    const match = argv.source.match(AtRegex);
-    const session = argv.session;
+  ctx
+    .command("showff", "显示喜欢列表")
+    .option("fun", "-f 有趣统计")
+    .action(async (argv) => {
+      const match = argv.source.match(AtRegex);
+      const session = argv.session;
 
-    let uid = "";
-    let uname = "";
+      let uid = "";
+      let uname = "";
 
-    if (match !== null && match.filter((m) => m !== undefined).length === 3) {
-      uid = match[1];
-      uname = match[2];
-    } else {
-      uid = argv.session.event.user.id;
-      uname = argv.session.username;
-    }
-    const aid = await getAidAsync(ctx, uid);
-    if (aid === null) return `${uname}还没有注册哦，无法显示喜欢的融合。`;
+      if (match !== null && match.filter((m) => m !== undefined).length === 3) {
+        uid = match[1];
+        uname = match[2];
+      } else {
+        uid = argv.session.event.user.id;
+        uname = argv.session.username;
+      }
+      const aid = await getAidAsync(ctx, uid);
+      if (aid === null) return `${uname}还没有注册哦，无法显示喜欢的融合。`;
 
-    const list = await ctx.database.get("fuseFavor", {
-      user: aid,
+      const list = await ctx.database.get("fuseFavor", {
+        user: aid,
+      });
+
+      if (list.length === 0) {
+        return `${uname}还没有喜欢的融合哦。`;
+      }
+
+      const shuffledList = Random.shuffle(list);
+
+      const fun = argv.options.fun;
+
+      if (!fun) {
+        return await showFavorList(ctx, shuffledList, session, aid);
+      } else {
+        const favorDict: { [key: string]: number } = {};
+        shuffledList.forEach((entry) => {
+          favorDict[entry.firstId] = (favorDict[entry.firstId] ?? 0) + 1;
+          if (entry.secondId !== undefined && entry.secondId !== null) favorDict[entry.secondId] = (favorDict[entry.secondId] ?? 0) + 1;
+          if (entry.thirdId !== undefined && entry.thirdId !== null) favorDict[entry.thirdId] = (favorDict[entry.thirdId] ?? 0) + 1;
+        });
+        let favorate = "";
+        let max = 0;
+        Object.entries(favorDict).forEach(([k, v]) => {
+          if (v > max) {
+            favorate = k;
+            max = v;
+          }
+        });
+        return `${uname}最喜欢的宝可梦应该是${getPokeNameByPifId(favorate)}吧！`;
+      }
     });
-
-    if (list.length === 0) {
-      return `${uname}还没有喜欢的融合哦。`;
-    }
-
-    const shuffledList = Random.shuffle(list);
-
-    const rand = Random.int(0, 10);
-
-    if (rand >= 2) {
-      return await showFavorList(ctx, shuffledList, session);
-    } else if (rand < 2) {
-      const favorDict: { [key: string]: number } = {};
-      shuffledList.forEach((entry) => {
-        favorDict[entry.firstId] = (favorDict[entry.firstId] ?? 0) + 1;
-        if (entry.secondId !== undefined && entry.secondId !== null) favorDict[entry.secondId] = (favorDict[entry.secondId] ?? 0) + 1;
-        if (entry.thirdId !== undefined && entry.thirdId !== null) favorDict[entry.thirdId] = (favorDict[entry.thirdId] ?? 0) + 1;
-      });
-      let favorate = "";
-      let max = 0;
-      Object.entries(favorDict).forEach(([k, v]) => {
-        if (v > max) {
-          favorate = k;
-          max = v;
-        }
-      });
-      return `${uname}最喜欢的宝可梦应该是${getPokeNameByPifId(favorate)}吧！`;
-    }
-  });
 
   ctx.command("randff", "随机显示喜欢的融合").action(async (argv) => {
     const match = argv.source.match(AtRegex);
@@ -312,7 +316,7 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
   });
 
   ctx.command("nick <nickname>", "通过昵称显示融合图像").action(async (_, nickname) => {
-    const picks = await ctx.database.get("fuseFavor", { nickname });
+    const picks = await ctx.database.get("fuseNick", { nickname });
 
     if (picks.length === 0) {
       return "还没有这个昵称呢。";
@@ -327,9 +331,9 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
 
     const url = getPifUrl(entry);
     if (entry.secondId === null) {
-      return `正是原汁原味的${displayFuseEntry(entry, nickname)}！\n${h("img", { src: url })}`;
+      return `正是原汁原味的${displayFuseEntry(entry)}！\n${h("img", { src: url })}`;
     } else {
-      return `正是${displayFuseEntry(entry, nickname)}！\n${h("img", { src: url })}`;
+      return `正是${displayFuseEntry(entry)}！\n${h("img", { src: url })}`;
     }
   });
 }

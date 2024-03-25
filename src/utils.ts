@@ -183,7 +183,7 @@ export function getPifUrl({ firstId, secondId, thirdId, variant }: FuseEntry): s
 
 export async function isPermittedChangeNickname(ctx: Context, favorEntry: FuseEntry, aid: number): Promise<[boolean, number]> {
   const check = await ctx.database.get("fuseNick", favorEntry, ["user"]);
-  if (check === null) return [true, -1];
+  if (check.length === 0) return [true, -1];
   if (check.filter((v) => v.user !== aid).length > 0) return [false, check[0].user];
   return [true, -1];
 }

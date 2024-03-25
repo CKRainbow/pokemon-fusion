@@ -240,6 +240,28 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
     })
     .alias("图鉴");
 
+  ctx.command("nick <nickname>", "通过昵称显示融合图像").action(async (_, nickname) => {
+    const picks = await ctx.database.get("fuseNick", { nickname });
+
+    if (picks.length === 0) {
+      return "还没有这个昵称呢。";
+    }
+
+    const entry: FuseEntry = {
+      firstId: picks[0].firstId,
+      secondId: picks[0].secondId,
+      thirdId: picks[0].thirdId,
+      variant: picks[0].variant,
+    };
+
+    const url = getPifUrl(entry);
+    if (entry.secondId === null) {
+      return `正是原汁原味的${displayFuseEntry(entry)}！\n${h("img", { src: url })}`;
+    } else {
+      return `正是${displayFuseEntry(entry)}！\n${h("img", { src: url })}`;
+    }
+  });
+
   ctx
     .command("addNick [first] [second] [third]", "为该融合添加昵称")
     .option("quote", "-q 通过引用抓取融合")
@@ -329,7 +351,7 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
 
       if (nickname === undefined) {
         await session.send("请输入昵称，输入-1则删除昵称");
-        nickname = await session.prompt(8000);
+        nickname = await session.prompt(20000);
         if (nickname === undefined) return "Time Limit Error!";
       }
 
@@ -340,5 +362,8 @@ export function apply(ctx: Context, config: FuseCoreConfig) {
       return await addNickname(ctx, nickname, fuseEntry, aid);
     })
     .alias("起昵称", { options: { quote: true } })
+    .alias("取昵称", { options: { quote: true } })
+    .alias("取名", { options: { quote: true } })
+    .alias("起名", { options: { quote: true } })
     .alias("移除昵称", { options: { quote: true, nickname: "-1" } });
 }

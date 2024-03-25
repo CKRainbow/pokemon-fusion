@@ -20,7 +20,7 @@ export async function addFavor(ctx: Context, favorEntry: FuseEntry, aid: number,
 
   const nicknamePick = await ctx.database.get("fuseNick", favorEntry);
   var nickname = null;
-  if (nicknamePick !== null) {
+  if (nicknamePick.length > 0) {
     nickname = nicknamePick[0].nickname;
   }
 
@@ -96,7 +96,7 @@ ${h("img", { src: url })}
     }
 
     await session.send("请输入昵称，输入-1则删除昵称");
-    const nickname = await session.prompt(8000);
+    const nickname = await session.prompt(20000);
     if (nickname === undefined) return "Time Limit Error!";
 
     if (nickname === "-1") {

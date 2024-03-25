@@ -314,26 +314,4 @@ export function apply(ctx: Context, config: FuseFavorConfig) {
 
     return `${uname}很喜欢${displayFuseEntry(entry)}！\n${h("img", { src: url })}`;
   });
-
-  ctx.command("nick <nickname>", "通过昵称显示融合图像").action(async (_, nickname) => {
-    const picks = await ctx.database.get("fuseNick", { nickname });
-
-    if (picks.length === 0) {
-      return "还没有这个昵称呢。";
-    }
-
-    const entry: FuseEntry = {
-      firstId: picks[0].firstId,
-      secondId: picks[0].secondId,
-      thirdId: picks[0].thirdId,
-      variant: picks[0].variant,
-    };
-
-    const url = getPifUrl(entry);
-    if (entry.secondId === null) {
-      return `正是原汁原味的${displayFuseEntry(entry)}！\n${h("img", { src: url })}`;
-    } else {
-      return `正是${displayFuseEntry(entry)}！\n${h("img", { src: url })}`;
-    }
-  });
 }
